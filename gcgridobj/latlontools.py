@@ -9,6 +9,12 @@ def latlon_extract(nc_file):
     lat_b = latlon_est_bnds(lat,force_poles=True)
     return lon_b, lat_b, lon, lat
 
+def latlon_extract_grid(nc_file):
+    # Extract lat/lons from netCDF4 dataset but return as an xarray object
+    [lon_b,lat_b,lon,lat] = latlon_extract(nc_file)
+    return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
+                     'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b)})
+
 def latlon_gridarea(lon_b, lat_b, r_earth=6.375e6):
     # Calculate grid areas (m2) for a rectilinear grid
     lon_abs = []
