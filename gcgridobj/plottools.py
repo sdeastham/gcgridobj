@@ -146,7 +146,7 @@ def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show
        # Could this be a valid CS dataset?
        assert ld_shape[0] == 6 and (ld_shape[1] == ld_shape[2]), 'Layer data shape invalid (3D and not CS)'
        im_obj = plot_cs(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot)
-    elif ld_shape[1] == 6*ld_shape[0]:
+    elif ld_shape[0] == 6*ld_shape[1]:
        # Assume cubed sphere
        is_cs = True
        im_obj = plot_cs(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot)
