@@ -10,6 +10,26 @@ import xarray
 crs_plot_standard = ccrs.PlateCarree()
 crs_data_standard = ccrs.PlateCarree() 
 
+def reshape_cs(cs_data):
+    if cs_data.shape[-2] == 6*cs_data.shape[-1]:
+       full_data = cs_data.copy()
+       # Data is non-GMAO
+       n_cs = full_data.shape[-1]
+       new_shape = [6,n_cs,n_cs]
+       if len(full_data.shape) == 2:
+          # Data is 2-D
+          full_data = np.reshape(full_data,new_shape)
+       else:
+          # Ugh
+          n_layers = full_data.shape[0]
+          old_data = full_data
+          full_data = np.zeros((n_layers,6,n_cs,n_cs))
+          for i_layer in range(n_layers):
+             full_data[i_layer,:,:,:] = np.reshape(old_data[i_layer,:,:],new_shape)
+       return full_data
+    else:
+       return cs_data
+
 def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
     '''
     # regrid cs to ll
