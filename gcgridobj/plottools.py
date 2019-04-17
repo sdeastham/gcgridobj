@@ -38,14 +38,15 @@ def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
         regridder = devregridder_list[i]
         ds_dev_cmp += regridder(ds_dev_reshaped[i])
     '''
+    full_data = cs_data.copy()
+
     # Assume the CS data is 3D
-    single_layer = len(cs_data.shape) == 3
+    single_layer = len(full_data.shape) == 3
     if single_layer:
-       layer_shape = cs_data.shape
-       full_data = np.reshape(cs_data,layer_shape.insert(0,1))
+       layer_shape = full_data.shape
+       full_data = np.reshape(full_data,layer_shape.insert(0,1))
     else:
-       layer_shape = cs_data.shape[1:]
-       full_data = cs_data
+       layer_shape = full_data.shape[1:]
 
     full_shape = full_data.shape
     n_lev = full_shape[0]
