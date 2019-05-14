@@ -1,17 +1,17 @@
 import numpy as np
 import xarray as xr
 
-def latlon_extract(nc_file):
+def latlon_extract(nc_file,force_poles=True):
     # Attempt to extract lat and lon data from a netCDF4 dataset
     lon = nc_file['lon'][:]
     lat = nc_file['lat'][:]
     lon_b = latlon_est_bnds(lon)
-    lat_b = latlon_est_bnds(lat,force_poles=True)
+    lat_b = latlon_est_bnds(lat,force_poles=force_poles)
     return lon_b, lat_b, lon, lat
 
-def latlon_extract_grid(nc_file):
+def latlon_extract_grid(nc_file,force_poles=True):
     # Extract lat/lons from netCDF4 dataset but return as an xarray object
-    [lon_b,lat_b,lon,lat] = latlon_extract(nc_file)
+    [lon_b,lat_b,lon,lat] = latlon_extract(nc_file,force_poles=force_poles)
     return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
                      'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b)})
 
