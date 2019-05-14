@@ -43,8 +43,10 @@ def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
     # Assume the CS data is 3D
     single_layer = len(full_data.shape) == 3
     if single_layer:
-       layer_shape = full_data.shape
-       full_data = np.reshape(full_data,layer_shape.insert(0,1))
+       layer_shape = list(full_data.shape)
+       full_shape = layer_shape.copy()
+       full_shape.insert(0,1)
+       full_data = np.reshape(full_data,full_shape)
     else:
        layer_shape = full_data.shape[1:]
 
@@ -61,13 +63,7 @@ def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
     n_lon = len(new_grid['lon'])
     n_lat = len(new_grid['lat'])
     if regridder_list is None:
-       regridder_list = []
-       for i_face in range(6):
-          sub_grid = {'lat':   cs_grid['lat'][i_face], 
-                      'lon':   cs_grid['lon'][i_face],
-                      'lat_b': cs_grid['lat_b'][i_face], 
-                      'lon_b': cs_grid['lon_b'][i_face]}
-          regridder_list.append(xesmf.Regridder(sub_grid,new_grid,method='conservative',reuse_weights=True,filename='conservative_c{:d}f{:d}_{:d}x{:d}'.format(n_cs,i_face,n_lat,n_lon)))
+       regridder_list = gen_cs_regridder(cs_grid,new_grid)
 
     ll_data = np.zeros((n_lev,n_lat,n_lon))
     for i_lev in range(n_lev):
@@ -78,6 +74,19 @@ def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
        ll_data = np.squeeze(ll_data) 
 
     return ll_data 
+
+def gen_cs_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
+    regridder_list=[]
+    n_lon = ll_grid['lon'].size
+    n_lat = ll_grid['lat'].size
+    n_cs = cs_grid['lat'][0].shape[0]
+    for i_face in range(6):
+       sub_grid = {'lat':   cs_grid['lat'][i_face], 
+                   'lon':   cs_grid['lon'][i_face],
+                   'lat_b': cs_grid['lat_b'][i_face], 
+                   'lon_b': cs_grid['lon_b'][i_face]}
+       regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method='conservative',reuse_weights=True,filename='conservative_c{:d}f{:d}_{:d}x{:d}'.format(n_cs,i_face,n_lat,n_lon)))
+    return regridder_list
  
 def guess_cs_grid(cs_data_shape):
     # Is the data GMAO-style (6xNxN) or flat (6NxN)?
