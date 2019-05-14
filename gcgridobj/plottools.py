@@ -107,7 +107,7 @@ def guess_cs_grid(cs_data_shape):
 
     return n_cs, is_gmao    
 
-def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorbar=True):
+def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorbar=True,z_edge=None):
     '''Plot 2D data as a zonal profile
     '''
 
@@ -115,9 +115,14 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorb
     if is_pressure:
        alt_b = vrt_grid.p_edge()
     else:
-       raise ValueError('Altitude plotting not yet enabled')
-       alt_b = 0.0
-
+       # Use vertical grid description if available, otherwise
+       # get explicit z_edge from the user
+       if vrt_grid is None:
+          assert z_edge is not None, 'Need altitude edges in km'
+       elif z_edge is None:
+          z_edge = vrt_grid.z_edge_ISA() / 1000.0
+       alt_b = z_edge
+    
     assert len(zonal_data.shape) == 2, 'Zonal data must be 2-D'
     assert len(alt_b) == zonal_data.shape[0]+1, 'Zonal data incorrectly shaped (altitude)'
     assert len(lat_b) == zonal_data.shape[1]+1, 'Zonal data incorrectly shaped (latitude)'
@@ -132,6 +137,9 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorb
     if is_pressure:
        ax.invert_yaxis()
        ax.set_yscale('log')
+       ax.set_ylabel('Pressure, hPa')
+    else:
+       ax.set_ylabel('Altitude, km')
 
     if show_colorbar:
        cb = f.colorbar(im, ax=ax, shrink=0.6, orientation='vertical', pad=0.04)
