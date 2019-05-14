@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.sparse
+from . import atmos_isa_mini
 
 class vert_grid:
     def __init__(self,AP=None,BP=None,p_sfc=1013.25):
@@ -15,6 +16,10 @@ class vert_grid:
     def p_mid(self):
         p_edge = self.p_edge()
         return (p_edge[1:]+p_edge[:-1])/2.0
+    def z_edge_ISA(self):
+        return atmos_isa_mini.pressure_to_altitude(self.p_edge()*100.0)
+    def z_mid_ISA(self):
+        return atmos_isa_mini.pressure_to_altitude(self.p_mid()*100.0)
 
 # Standard vertical grids
 GEOS_72L_AP = np.array([ 0.000000e+00, 4.804826e-02, 6.593752e+00, 1.313480e+01,
