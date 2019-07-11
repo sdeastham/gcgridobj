@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+from . import physconstants
 
 def latlon_extract(nc_file,force_poles=True):
     # Attempt to extract lat and lon data from a netCDF4 dataset
@@ -16,6 +17,9 @@ def latlon_extract_grid(nc_file,force_poles=True):
                      'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b)})
 
 def latlon_gridarea(lon_b, lat_b, r_earth=6.375e6):
+    if r_earth is None:
+       r_earth = physconstants.R_earth
+
     # Calculate grid areas (m2) for a rectilinear grid
     lon_abs = []
     lastlon = lon_b[0]

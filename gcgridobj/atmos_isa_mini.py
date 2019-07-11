@@ -1,4 +1,5 @@
 import numpy as np
+from . import physconstants
 
 # Persistent (module) variables
 z_int = None
@@ -30,21 +31,13 @@ def altitude_to_many(z_m):
     gas_frac = gas_frac/np.sum(gas_frac)
     
     n_vals = z_m.size
-    #T_K = np.zeros(n_vals)
-    #a_ms = np.zeros(n_vals)
     p_pa = np.zeros(n_vals)
-    #rho_kgm3 = np.zeros(n_vals)
 
     # Temperature at target altitudes
     T_K = np.interp(z_m/1000.0,height_vec,T_vec)
 
-    R_star = 8.31432
-    N_avog = 6.022169e23 # molec/mol
-
-    #dynVisc = (T_K.^1.5 .* 1.458e-6)./(T_K + 110.4);
-    #kinVisc = dynVisc./rho_kgm3;
-
-    g0 = 9.80665 # m/s2
+    R_star = physconstants.R_gas # J/K/mol
+    g0 = physconstants.g0 # m/s2
 
     iLo = 0
     iHi = 1
@@ -77,8 +70,11 @@ def altitude_to_many(z_m):
             p_pa[i_sort] = P_base * np.power(T_K[i_sort]/TLo,MgR/-alphaTemp)
         else:
             p_pa[i_sort] = P_base * np.exp(MgR*(zLo-zCurr)/TLo)
+
     # Also calculate air density in kg/m3
     rho_kgm3 = (28.97e-3) * p_pa[sort_idx] / (8.314 * T_K[sort_idx])
+    #dynVisc = (np.power(T_K,1.5) * 1.458e-6)/(T_K + 110.4)
+    #kinVisc = dynVisc/rho_kgm3
 
     return p_pa, T_K, rho_kgm3
 
