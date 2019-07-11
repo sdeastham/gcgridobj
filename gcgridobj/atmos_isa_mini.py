@@ -4,7 +4,7 @@ import numpy as np
 z_int = None
 p_int = None
 
-def altitude_to_pressure(z_m):
+def altitude_to_many(z_m):
     '''Lightweight version of atmosisa from the Aerospace Toolbox'''
 
     # Sort from lowest to highest altitude
@@ -77,7 +77,13 @@ def altitude_to_pressure(z_m):
             p_pa[i_sort] = P_base * np.power(T_K[i_sort]/TLo,MgR/-alphaTemp)
         else:
             p_pa[i_sort] = P_base * np.exp(MgR*(zLo-zCurr)/TLo)
-    
+    # Also calculate air density in kg/m3
+    rho_kgm3 = (28.97e-3) * p_pa[sort_idx] / (8.314 * T_K[sort_idx])
+
+    return p_pa, T_K, rho_kgm3
+
+def altitude_to_pressure(z_m):
+    p_pa, T_K, rho_kgm3 = altitude_to_many(z_m)
     return p_pa
 
 def pressure_to_altitude(p_pa):
