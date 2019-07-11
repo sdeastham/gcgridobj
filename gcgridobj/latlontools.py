@@ -14,7 +14,8 @@ def latlon_extract_grid(nc_file,force_poles=True):
     # Extract lat/lons from netCDF4 dataset but return as an xarray object
     [lon_b,lat_b,lon,lat] = latlon_extract(nc_file,force_poles=force_poles)
     return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
-                     'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b)})
+                     'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b),
+                     'area': (['lat','lon'], latlon_gridarea(lon_b,lat_b))})
 
 def latlon_gridarea(lon_b=None, lat_b=None, hrz_grid=None, r_earth=None):
 
@@ -111,4 +112,5 @@ def gen_hrz_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_ran
         lat_b = latlon_est_bnds(lat)
     
     return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
-                     'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b)})
+                     'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b),
+                     'area': (['lat','lon'], latlon_gridarea(lon_b,lat_b))})
