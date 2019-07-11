@@ -148,7 +148,7 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorb
 
     return im, cb
 
-def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True):
+def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,coastlines=True):
 
     if crs_data is None:
        crs_data = crs_data_standard
@@ -189,7 +189,10 @@ def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show
     else:
        cb = None
 
-    ax.coastlines()
+    if coastlines:
+        # If user wants a different resolution, they can disable set coastlines=False
+        # and run this command after calling plot_layer
+        ax.coastlines('50m')
 
     return im_obj, cb
 
