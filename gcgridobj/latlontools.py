@@ -16,7 +16,15 @@ def latlon_extract_grid(nc_file,force_poles=True):
     return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
                      'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b)})
 
-def latlon_gridarea(lon_b, lat_b, r_earth=6.375e6):
+def latlon_gridarea(lon_b=None, lat_b=None, hrz_grid=None, r_earth=None):
+
+    if hrz_grid is not None:
+       assert lon_b is None and lat_b is None, "Must provide either a grid object or both the latitude and longitude aedges"
+       lon_b = hrz_grid['lon_b']
+       lat_b = hrz_grid['lat_b']
+    else:
+       assert lon_b is not None and lat_b is not None, "Need both lon_b and lat_b if grid object not supplied"
+
     if r_earth is None:
        r_earth = physconstants.R_earth
 
