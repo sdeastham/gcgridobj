@@ -6,6 +6,7 @@ from gcgridobj import gc_horizontal, gc_vertical
 import numpy as np
 import xesmf
 import xarray
+import warnings
 
 __all__ = ['regrid_cs','plot_zonal','plot_layer',
            'plot_cs','plot_latlon','guess_cs_grid',
@@ -107,12 +108,27 @@ def guess_cs_grid(cs_data_shape):
 
     return n_cs, is_gmao    
 
-def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorbar=True,z_edge=None):
+def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=None,show_colorbar=True,z_edge=None,vert_coord=None):
     '''Plot 2D data as a zonal profile
     '''
 
+    if is_pressure is not None:
+       warnings.warn("is_pressure option is deprecated. Use vert_coord instead", DeprecationWarning)
+       # Assert compatible options
+       if vert_coord is None:
+          if is_pressure:
+             vert_coord = 'pressure'
+          else:
+             vert_coord = 'altitude'
+       else:
+          raise ValueError("Cannot specify vert_coord and deprecated is_pressure option together")
+
+    # Default option. This will be moved to the argument list once is_pressure is removed
+    if vert_coord is None:
+       vert_coord = 'altitude'
+
     lat_b = hrz_grid['lat_b']
-    if is_pressure:
+    if vert_coord == 'pressure':
        alt_b = vrt_grid.p_edge()
     else:
        # Use vertical grid description if available, otherwise
@@ -134,12 +150,14 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=True,show_colorb
 
     im = ax.pcolormesh(lat_b,alt_b,zonal_data)
 
-    if is_pressure:
+    if vert_coord == 'pressure':
        ax.invert_yaxis()
        ax.set_yscale('log')
        ax.set_ylabel('Pressure, hPa')
-    else:
+    elif vert_coord == 'altitude':
        ax.set_ylabel('Altitude, km')
+    else:
+       raise ValueError('Vertical coordinate {:s} not recognized'.format(vert_coord))
 
     if show_colorbar:
        cb = f.colorbar(im, ax=ax, shrink=0.6, orientation='vertical', pad=0.04)
