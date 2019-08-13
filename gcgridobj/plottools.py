@@ -36,7 +36,7 @@ def reshape_cs(cs_data):
     else:
        return cs_data
 
-def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
+def regrid_cs(cs_data,new_grid=None,cs_grid=None,regridder_list=None):
     '''
     # regrid cs to ll
     ds_dev_cmp = np.zeros([nlev, cmpgrid['lat'].size, cmpgrid['lon'].size])
@@ -65,9 +65,17 @@ def regrid_cs(cs_data,new_grid,cs_grid=None,regridder_list=None):
     if cs_grid is None:
        # Try to figure out the grid from the layer data
        cs_grid = cubedsphere.csgrid_GMAO(n_cs)
-  
-    n_lon = len(new_grid['lon'])
-    n_lat = len(new_grid['lat'])
+ 
+    if new_grid is None:
+       assert regridder_list is not None, 'Need either a regridder list or target grid'
+       # Get lat/lon sizes from regridder_list
+       out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+       n_lon = out_shape[0]
+       n_lat = out_shape[1]
+    else: 
+       n_lon = len(new_grid['lon'])
+       n_lat = len(new_grid['lat'])
+
     if regridder_list is None:
        regridder_list = gen_cs_regridder(cs_grid,new_grid)
 
