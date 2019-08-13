@@ -86,12 +86,14 @@ def gen_cs_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
     n_lon = ll_grid['lon'].size
     n_lat = ll_grid['lat'].size
     n_cs = cs_grid['lat'][0].shape[0]
-    for i_face in range(6):
-       sub_grid = {'lat':   cs_grid['lat'][i_face], 
-                   'lon':   cs_grid['lon'][i_face],
-                   'lat_b': cs_grid['lat_b'][i_face], 
-                   'lon_b': cs_grid['lon_b'][i_face]}
-       regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method='conservative',reuse_weights=True,filename='conservative_c{:d}f{:d}_{:d}x{:d}'.format(n_cs,i_face,n_lat,n_lon)))
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="Input array is not F_CONTIGUOUS. Will affect performance.")
+        for i_face in range(6):
+           sub_grid = {'lat':   cs_grid['lat'][i_face], 
+                       'lon':   cs_grid['lon'][i_face],
+                       'lat_b': cs_grid['lat_b'][i_face], 
+                       'lon_b': cs_grid['lon_b'][i_face]}
+           regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method='conservative',reuse_weights=True,filename='conservative_c{:d}f{:d}_{:d}x{:d}'.format(n_cs,i_face,n_lat,n_lon)))
     return regridder_list
  
 def guess_cs_grid(cs_data_shape):
