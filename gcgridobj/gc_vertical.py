@@ -16,6 +16,11 @@ class vert_grid:
     def p_mid(self):
         p_edge = self.p_edge()
         return (p_edge[1:]+p_edge[:-1])/2.0
+    def gen_p_field(self,p_sfc_2D):
+        p_3D = np.zeros(([self.AP.size] + list(p_sfc_2D.shape)))
+        for i_lev in range(self.AP.size):
+           p_3D[i_lev,...] = self.AP[i_lev] + self.BP[i_lev] * p_sfc_2D
+        return p_3D
     def z_edge_ISA(self):
         return atmos_isa_mini.pressure_to_altitude(self.p_edge()*100.0)
     def z_mid_ISA(self):
