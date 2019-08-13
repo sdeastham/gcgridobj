@@ -2,6 +2,58 @@ import numpy as np
 import xarray as xr
 from . import physconstants
 
+def find_idx(targ_val,bound_vec_full,allow_loop=False):
+    # Find the index, assuming evenly-spaced bounds (and allowing for half-polar)
+    bound_vec = bound_vec_full.copy()
+    # Force monotonicity (assuming this is longitude data)
+    bound_correction = 0.0
+    n_circles = 0
+    for idx in range(len(bound_vec)-1):
+       if bound_vec[idx+1] < bound_vec[idx]:
+          n_circles += 1
+          bound_vec[(idx+1):] += 360.0
+    assert n_circles <= 1, 'Bounds vector looped more than once'
+    # Get dx based on the average, excluding polar cells
+    if len(bound_vec) < 4:
+       # Argh - assume no polar cells, as we only have < 3 cells
+       dx = np.asscalar((bound_vec[-1] - bound_vec[1])/len(bound_vec))
+    else:
+       dx = np.asscalar((bound_vec[-2] - bound_vec[1])/(len(bound_vec)-3))
+    is_found = False
+    n_loops = 0
+    max_loops = 2
+    while not is_found:
+       # Have we started going off the deep end?
+       if n_loops > max_loops:
+          raise ValueError('Could not find target value in given range')
+       # If above the first "definitely non-polar" cell edge..
+       if targ_val > bound_vec[1]:
+          # Within maximum bounds?
+          if targ_val > bound_vec[-1]:
+             if allow_loop:
+                n_loops += 1
+                targ_val -= 360.0
+             else:
+                raise ValueError('Target value above maximum')
+          else:
+             # Yes!
+             is_found = True
+             idx_val = 1 + np.floor((targ_val - bound_vec[1])/dx)
+             if (idx_val == len(bound_vec)):
+                # Edge case; force down into final cell
+                idx_val -= 1
+       elif targ_val < bound_vec[0]:
+          if allow_loop:
+             n_loops += 1
+             targ_val += 360.0
+          else:
+             raise ValueError('Target value below minimum')
+       else:
+          # In first cell
+          is_found = True
+          idx_val = 0
+    return int(idx_val)
+
 def latlon_extract(nc_file,force_poles=True):
     # Attempt to extract lat and lon data from a netCDF4 dataset
     lon = nc_file['lon'][:]
