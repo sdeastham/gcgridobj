@@ -7,10 +7,12 @@ import numpy as np
 import xesmf
 import xarray
 import warnings
+import cartopy.io.shapereader as shpreader
 
 __all__ = ['regrid_cs','plot_zonal','plot_layer',
            'plot_cs','plot_latlon','guess_cs_grid',
-           'reshape_cs']
+           'reshape_cs','plot_state','plot_shape',
+           'plot_country']
  
 
 crs_plot_standard = ccrs.PlateCarree()
@@ -269,9 +271,85 @@ def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_co
 
     c_lim = [np.min(layer_data),np.max(layer_data)]
     if (c_lim[0] == c_lim[1]):
-       c_lim = [-1.0,1.0]
+       c_lim = [c_lim[0] - 0.5,c_lim[1] + 0.5]
 
     for im in im_vec:
        im.set_clim(c_lim)
 
     return im_vec
+
+def plot_shape(state_name,state_val,shape_data_archive,classifier,
+               edgecolor='black',cmap=None,c_lim=(0.0,1.0),ax=None,nofail=True):
+    '''Plot an shape onto a set of axes'''
+    
+    if ax is None:
+        f, ax = plt.subplots(1,1,figsize=(10,8),subplot_kw={'projection': ccrs.PlateCarree()})
+    
+    if state_val is None:
+        facecolor = 'none'
+    else:
+        if cmap is None:
+            temp_cm = plt.get_cmap('viridis',50)
+        elif isinstance(cmap, str):
+            temp_cm = plt.get_cmap(cmap)
+        else:
+            temp_cm = cmap
+        
+        cmap_val = (state_val - c_lim[0]) / (c_lim[1] - c_lim[0])
+        facecolor = temp_cm(cmap_val)
+    
+    im_shp = None
+    
+    for astate in shpreader.Reader(shape_data_archive).records():
+        if state_name == astate.attributes[classifier]:
+            im_shp = ax.add_geometries([astate.geometry], ccrs.PlateCarree(),
+                                      facecolor=facecolor,edgecolor=edgecolor)
+            break
+    
+    if im_shp is None:
+        state_msg = 'Shape ''{:s}'' not found'.format(state_name)
+        if nofail:
+            warnings.warn(state_msg)
+        else:
+            raise ValueError(state_msg)
+    return im_shp, ax
+
+def plot_state(state_name,state_val,resolution='110m',**kwargs):
+    '''Plot a US state, Australian territory, or Brazilian state onto a set of axes'''
+    shape_data_archive = shpreader.natural_earth(resolution=resolution,
+                                         category='cultural', name='admin_1_states_provinces_lakes_shp')
+    classifier = 'name'
+    im_shp, ax = plot_shape(state_name,state_val,classifier='name',shape_data_archive=shape_data_archive,**kwargs)
+    return im_shp, ax
+
+def plot_country(country_name,country_val,resolution='110m',**kwargs):
+    '''Plot a country onto a set of axes'''
+    shape_data_archive = shpreader.natural_earth(resolution=resolution, category='cultural', name='admin_0_countries')
+    im_shp, ax = plot_shape(country_name,country_val,classifier='NAME',
+                            shape_data_archive=shape_data_archive,**kwargs)
+    return im_shp, ax
+
+def get_clim(im_obj):
+    if isinstance(im_obj,list):
+       c_lim = [+np.inf,-np.inf]
+       for im in im_obj:
+          c_lim_temp = get_clim(im)
+          #print(c_lim,c_lim_temp,'ccc')
+          c_lim[0] = min(c_lim_temp[0],c_lim[0])
+          c_lim[1] = max(c_lim_temp[1],c_lim[1])
+    else:
+       c_lim = im_obj.get_clim()
+    return c_lim
+
+def set_clim(im_obj,c_lim=None,cmap=None):
+    if isinstance(im_obj,list):
+       for im in im_obj:
+          set_clim(im,c_lim,cmap)
+    else:
+       if np.isscalar(c_lim):
+          # Assume max
+          c_lim = [-c_lim,c_lim]
+       im_obj.set_clim(c_lim)
+       if cmap is not None:
+          im_obj.set_cmap(cmap)
+    return None
