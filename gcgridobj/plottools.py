@@ -1,131 +1,50 @@
 #!/usr/bin/env python3
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cubedsphere
-from gcgridobj import gc_horizontal, gc_vertical
+from gcgridobj import regrid
 import numpy as np
-import xesmf
-import xarray
 import warnings
 import cartopy.io.shapereader as shpreader
 
-__all__ = ['regrid_cs','plot_zonal','plot_layer',
-           'plot_cs','plot_latlon','guess_cs_grid',
-           'reshape_cs','plot_state','plot_shape',
+__all__ = ['plot_zonal','plot_layer',
+           'plot_cs','plot_latlon',
+           'plot_state','plot_shape',
            'plot_country']
- 
 
 crs_plot_standard = ccrs.PlateCarree()
 crs_data_standard = ccrs.PlateCarree() 
 
 def reshape_cs(cs_data):
-    if cs_data.shape[-2] == 6*cs_data.shape[-1]:
-       full_data = cs_data.copy()
-       # Data is non-GMAO
-       n_cs = full_data.shape[-1]
-       new_shape = [6,n_cs,n_cs]
-       if len(full_data.shape) == 2:
-          # Data is 2-D
-          full_data = np.reshape(full_data,new_shape)
-       else:
-          # Ugh
-          n_layers = full_data.shape[0]
-          old_data = full_data
-          full_data = np.zeros((n_layers,6,n_cs,n_cs))
-          for i_layer in range(n_layers):
-             full_data[i_layer,:,:,:] = np.reshape(old_data[i_layer,:,:],new_shape)
-       return full_data
-    else:
-       return cs_data
+    warnings.warn('plottools.reshape_cs is deprecated. Please use regrid.reshape_cs instead',FutureWarning)
+    return regrid.reshape_cs(cs_data)
+
+def regrid_ll_to_cs(ll_data,cs_grid=None,ll_grid=None,regridder_list=None):
+    warnings.warn('plottools.regrid_ll_to_cs is deprecated. Please use regrid.l2c instead',FutureWarning)
+    return regrid.l2c(ll_data,cs_grid=cs_grid,ll_grid=ll_grid,regridder_list=regridder_list)
 
 def regrid_cs(cs_data,new_grid=None,cs_grid=None,regridder_list=None):
-    '''
-    # regrid cs to ll
-    ds_dev_cmp = np.zeros([nlev, cmpgrid['lat'].size, cmpgrid['lon'].size])
-    for i in range(6):
-        regridder = devregridder_list[i]
-        ds_dev_cmp += regridder(ds_dev_reshaped[i])
-    '''
-    full_data = cs_data.copy()
+    warnings.warn('plottools.regrid_cs is deprecated. Please use regrid.c2l instead',FutureWarning)
+    return regrid.c2l(cs_data,cs_grid=cs_grid,ll_grid=new_grid,regridder_list=regridder_list)
 
-    # Assume the CS data is 3D
-    single_layer = len(full_data.shape) == 3
-    if single_layer:
-       layer_shape = list(full_data.shape)
-       full_shape = layer_shape.copy()
-       full_shape.insert(0,1)
-       full_data = np.reshape(full_data,full_shape)
-    else:
-       layer_shape = full_data.shape[1:]
-
-    full_shape = full_data.shape
-    n_lev = full_shape[0]
-
-    # Figure out the grid size
-    n_cs, is_gmao = guess_cs_grid(layer_shape)
-
-    if cs_grid is None:
-       # Try to figure out the grid from the layer data
-       cs_grid = cubedsphere.csgrid_GMAO(n_cs)
- 
-    if new_grid is None:
-       assert regridder_list is not None, 'Need either a regridder list or target grid'
-       # Get lat/lon sizes from regridder_list
-       out_shape = regridder_list[0]._grid_out.coords[0][0].shape
-       n_lon = out_shape[0]
-       n_lat = out_shape[1]
-    else: 
-       n_lon = len(new_grid['lon'])
-       n_lat = len(new_grid['lat'])
-
-    if regridder_list is None:
-       regridder_list = gen_cs_regridder(cs_grid,new_grid)
-
-    ll_data = np.zeros((n_lev,n_lat,n_lon))
-    for i_lev in range(n_lev):
-       for i_face in range(6):
-          ll_data[i_lev,:,:] += regridder_list[i_face](full_data[i_lev,i_face,:,:])
-
-    if single_layer:
-       ll_data = np.squeeze(ll_data) 
-
-    return ll_data 
+def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
+    warnings.warn('plottools.gen_l2c_regridder is deprecated. Please use regrid.gen_regridder instead',FutureWarning)
+    return regrid.gen_regridder(ll_grid,cs_grid,method,grid_dir)
 
 def gen_cs_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
-    regridder_list=[]
-    n_lon = ll_grid['lon'].size
-    n_lat = ll_grid['lat'].size
-    n_cs = cs_grid['lat'][0].shape[0]
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="Input array is not F_CONTIGUOUS. Will affect performance.")
-        for i_face in range(6):
-           sub_grid = {'lat':   cs_grid['lat'][i_face], 
-                       'lon':   cs_grid['lon'][i_face],
-                       'lat_b': cs_grid['lat_b'][i_face], 
-                       'lon_b': cs_grid['lon_b'][i_face]}
-           regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method='conservative',reuse_weights=True,filename='conservative_c{:d}f{:d}_{:d}x{:d}'.format(n_cs,i_face,n_lat,n_lon)))
-    return regridder_list
+    warnings.warn('plottools.gen_cs_regridder is deprecated. Please use regrid.gen_regridder instead',FutureWarning)
+    return regrid.gen_regridder(cs_grid,ll_grid,method,grid_dir)
  
 def guess_cs_grid(cs_data_shape):
-    # Is the data GMAO-style (6xNxN) or flat (6NxN)?
-    is_gmao = len(cs_data_shape) == 3
-    if is_gmao:
-       assert cs_data_shape[1] == cs_data_shape[2], '3D CS data not square'
-       assert cs_data_shape[0] == 6, '3D CS data must have 6 faces'
-       n_cs = cs_data_shape[1]
-    else:
-       assert len(cs_data_shape) == 2, 'CS data must be 2D or 3D'
-       assert cs_data_shape[0] == 6*cs_data_shape[1], '2D CS data must be 6NxN'
-       n_cs = cs_data_shape[1]
-
-    return n_cs, is_gmao    
+    # This used to return face side length and is_gmao, which was inconsistent
+    warnings.warn('plottools.guess_cs_grid is deprecated. Please use regrid.guess_cs_grid or regrid.guess_n_cs instead',FutureWarning)
+    return regrid.guess_n_cs(cs_data_shape)
 
 def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=None,show_colorbar=True,z_edge=None,vert_coord=None):
     '''Plot 2D data as a zonal profile
     '''
 
     if is_pressure is not None:
-       warnings.warn("is_pressure option is deprecated. Use vert_coord instead", DeprecationWarning)
+       warnings.warn("is_pressure option is deprecated. Use vert_coord instead", FutureWarning)
        # Assert compatible options
        if vert_coord is None:
           if is_pressure:
@@ -233,7 +152,8 @@ def plot_latlon(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,sho
     assert len(layer_data.shape) == 2, 'Layer data must be 2-D'
 
     if hrz_grid is None:
-       hrz_grid = gc_horizontal.get_grid(layer_data.shape)
+       #hrz_grid = gc_horizontal.get_grid(layer_data.shape)
+       hrz_grid = regrid.guess_ll_grid(layer_data.shape)
        assert hrz_grid is not None, 'Could not auto-identify grid'
    
     lon_b = hrz_grid['lon_b']
@@ -246,23 +166,35 @@ def plot_latlon(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,sho
 
     return im
 
-def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True):
+def update_cs(layer_data,im_vec,hrz_grid=None,cs_threshold=5):
+    # WARNING: layer_data must be [6 x N x N]
+    if hrz_grid is None:
+       # Try to figure out the grid from the layer data
+       #n_cs, is_gmao = guess_cs_grid(layer_data.shape)    
+       #hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
+       cs_grid = regrid.guess_cs_grid(layer_data.shape)    
+    masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
+    for i_face in range(6):
+       im_vec[i_face].set_array(masked_data[i_face,:,:].ravel())
 
-    n_cs, is_gmao = guess_cs_grid(layer_data.shape)    
+def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,cs_threshold=5.0):
 
-    if is_gmao:
-       # Use data as-is
-       layer_data_3D = layer_data
-    else:
-       # Reshape data to be "GMAO-style" (3D)
-       layer_data_3D = np.reshape(layer_data,(6,n_cs,n_cs))
+    # 2019-12-17: dropped support for non-GMAO grids
+    #n_cs, is_gmao = regrid.guess_n_cs(layer_data.shape)    
+
+    #if is_gmao:
+    #   # Use data as-is
+    #   layer_data_3D = layer_data
+    #else:
+    #   # Reshape data to be "GMAO-style" (3D)
+    #   layer_data_3D = np.reshape(layer_data,(6,n_cs,n_cs))
 
     if hrz_grid is None:
        # Try to figure out the grid from the layer data
-       hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
+       #hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
+       hrz_grid = regrid.guess_cs_grid(layer_data.shape)
     
-    cs_threshold = 5.0
-    masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data_3D)
+    masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
  
     im_vec = []
     for i_face in range(6):

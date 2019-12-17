@@ -1,4 +1,5 @@
-from gcgridobj import latlontools
+from gcgridobj import latlontools, regrid
+import warnings
 
 # Define all the major GEOS-Chem grids
 # Horizontal global grids first
@@ -30,26 +31,6 @@ nested_grid_inventory = [gmao_05x0666_us,
                          gmao_05x0625_us]
 
 def get_grid(grid_shape,is_nested=None,first_call=True):
-    # Try to match a grid based only on its size
-    # Target not yet found
-    is_target = False
-    out_grid = None
-    # First try global
-    if is_nested is None or (not is_nested):
-        for grid in global_grid_inventory:
-            is_target = grid.lon.size == grid_shape[0] and grid.lat.size == grid_shape[1]
-            if is_target:
-                out_grid = grid
-                break
-    if not is_target and (is_nested is None or is_nested):
-        for grid in nested_grid_inventory:
-            is_target = grid.lon.size == grid_shape[0] and grid.lat.size == grid_shape[1]
-            if is_target:
-                out_grid = grid
-                break
-    if not is_target and first_call:
-        # Try transposing but prevent recursion
-        out_grid = get_grid([grid_shape[1],grid_shape[0]],is_nested,False)
-    
-    # Return result
-    return out_grid
+   warnings.warn('gc_horizontal.get_grid is deprecated. Please change code to use regrid.guess_ll_grid instead')
+   # Changed ordering fron [lon, lat] to [lat, lon]
+   return regrid.guess_ll_grid([grid_shape[1],grid_shape[0]],is_nested,first_call)
