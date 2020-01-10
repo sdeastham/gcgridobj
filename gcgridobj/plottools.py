@@ -172,7 +172,7 @@ def update_cs(layer_data,im_vec,hrz_grid=None,cs_threshold=5):
        # Try to figure out the grid from the layer data
        #n_cs, is_gmao = guess_cs_grid(layer_data.shape)    
        #hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
-       cs_grid = regrid.guess_cs_grid(layer_data.shape)    
+       hrz_grid = regrid.guess_cs_grid(layer_data.shape)    
     masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
     for i_face in range(6):
        im_vec[i_face].set_array(masked_data[i_face,:,:].ravel())
