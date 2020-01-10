@@ -81,6 +81,39 @@ def l2c(ll_data,cs_grid=None,ll_grid=None,regridder_list=None):
 
     return cs_data 
 
+def c2c(cs_data,regridder_list=None):
+    '''
+    # regrid cubed sphere data to different cs resolution
+    '''
+    full_data = cs_data.copy()
+
+    # Assume the CS data is 3D
+    single_layer = len(full_data.shape) == 3
+    if single_layer:
+       layer_shape = list(full_data.shape)
+       full_shape = layer_shape.copy()
+       full_shape.insert(0,1)
+       full_data = np.reshape(full_data,full_shape)
+    else:
+       layer_shape = full_data.shape[1:]
+
+    full_shape = full_data.shape
+    n_lev = full_shape[0]
+
+    # Get all data from regridders
+    out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    n_cs_out = out_shape[-1]
+
+    out_data = np.zeros((n_lev,6,n_cs_out,n_cs_out))
+    for i_lev in range(n_lev):
+       for i_face in range(6):
+          out_data[i_lev,i_face,:,:] += regridder_list[i_face](full_data[i_lev,i_face,:,:])
+
+    if single_layer:
+       out_data = np.squeeze(out_data) 
+
+    return out_data 
+
 def c2l(cs_data,ll_grid=None,cs_grid=None,regridder_list=None):
     '''
     # regrid cubed sphere data to lat-lon
@@ -131,7 +164,21 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
           # Grids are identical
           regrid_obj = None
        else:
-          raise ValueError('CS -> CS regridding not yet enabled')
+          regridder_obj=[]
+          with warnings.catch_warnings():
+              warnings.filterwarnings("ignore", message="Input array is not F_CONTIGUOUS. Will affect performance.")
+              # Assume the faces align
+              for i_face in range(6):
+                 sub_grid_in  = {'lat':   grid_in['lat'][i_face], 
+                                 'lon':   grid_in['lon'][i_face],
+                                 'lat_b': grid_in['lat_b'][i_face], 
+                                 'lon_b': grid_in['lon_b'][i_face]}
+                 sub_grid_out = {'lat':   grid_out['lat'][i_face], 
+                                 'lon':   grid_out['lon'][i_face],
+                                 'lat_b': grid_out['lat_b'][i_face], 
+                                 'lon_b': grid_out['lon_b'][i_face]}
+                 fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_c{:d}f{:d}'.format(method,cs_in,i_face,cs_out,i_face))
+                 regridder_obj.append(xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,filename=fname))
     elif cs_in:
        # CS -> LL
        regrid_obj = gen_c2l_regridder(cs_grid=grid_in,ll_grid=grid_out,method=method,grid_dir=grid_dir)
