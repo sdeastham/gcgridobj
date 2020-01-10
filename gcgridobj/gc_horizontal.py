@@ -34,3 +34,20 @@ def get_grid(grid_shape,is_nested=None,first_call=True):
    warnings.warn('gc_horizontal.get_grid is deprecated. Please change code to use regrid.guess_ll_grid instead')
    # Changed ordering fron [lon, lat] to [lat, lon]
    return regrid.guess_ll_grid([grid_shape[1],grid_shape[0]],is_nested,first_call)
+
+def calc_cs_area(cs_res=None,cs_grid=None):
+    import cubedsphere
+    import cubedsphere_area
+    import numpy as np
+    # Calculate area on a cubed sphere
+    if cs_res is None:
+        cs_res = cs_grid['lon_b'].shape[-1]
+    elif cs_grid is None:
+        cs_grid = cubedsphere.csgrid_GMAO(cs_res)
+    elif cs_grid is not None and cs_res is not None:
+        assert cs_res == cs_grid['lon_b'].shape[-1], 'cs_area received inconsistent inputs' 
+    cs_area = np.zeros((6,cs_res,cs_res))
+    cs_area[0,:,:] = cubedsphere_area.calc_cs_area(cs_grid['lon_b'][0,:,:],cs_grid['lat_b'][0,:,:])
+    for i_face in range(1,6):
+        cs_area[i_face,:,:] = cs_area[0,:,:].copy()
+    return cs_area
