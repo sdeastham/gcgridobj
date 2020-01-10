@@ -31,11 +31,11 @@ def reshape_cs(cs_data):
 def unshape_cs(cs_data):
     # Go from [6xNxN] to [6NxN]
     if cs_data.shape[-2] == cs_data.shape[-1]:
-       full_data = cs_data.copy()
+       full_data = np.squeeze(cs_data.copy())
        # Data is non-GMAO
        n_cs = full_data.shape[-1]
        new_shape = [6*n_cs,n_cs]
-       if len(full_data.shape) == 2:
+       if len(full_data.shape) == 3:
           # Data is 2-D
           full_data = np.reshape(full_data,new_shape)
        else:
