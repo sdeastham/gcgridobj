@@ -7,47 +7,99 @@ import xarray
 import warnings
 import os
 
-def reshape_cs(cs_data):
-    # Go from [6NxN] to [6xNxN]
-    if cs_data.shape[-2] == 6*cs_data.shape[-1]:
-       full_data = cs_data.copy()
+def reshape_cs_arb(cs_data):
+    # Go from [...,6N,N] to [...,6,N,N]
+    in_shape = cs_data.shape
+    if in_shape[-2] == 6*in_shape[-1]:
+       in_data = cs_data.copy()
        # Data is non-GMAO
-       n_cs = full_data.shape[-1]
-       new_shape = [6,n_cs,n_cs]
-       if len(full_data.shape) == 2:
+       n_cs = in_shape[-1]
+       out_shape = np.zeros(len(in_shape)+1,int)
+       out_shape[:-3] = in_shape[:-2]
+       out_shape[-3:] = [6,n_cs,n_cs]
+       if in_shape == 2:
           # Data is 2-D
-          full_data = np.reshape(full_data,new_shape)
+          out_data = np.reshape(in_data,out_shape)
        else:
           # Ugh
-          n_layers = full_data.shape[0]
-          old_data = full_data
-          full_data = np.zeros((n_layers,6,n_cs,n_cs))
-          for i_layer in range(n_layers):
-             full_data[i_layer,:,:,:] = np.reshape(old_data[i_layer,:,:],new_shape)
-       return full_data
+          n_other = int(np.product(in_shape[:-2]))
+          in_reshape = np.reshape(in_data,[-1,n_cs*6,n_cs])
+          out_reshape = np.zeros((in_reshape.shape[0],6,n_cs,n_cs))
+          for i_other in range(n_other):
+             out_reshape[i_other,:,:,:] = np.reshape(in_reshape[i_other,:,:],[1,6,n_cs,n_cs])
+          out_data = np.reshape(out_reshape,out_shape)
+       return out_data
+    else:
+       return cs_data
+
+def reshape_cs(cs_data):
+    return reshape_cs_arb(cs_data)
+    ## Go from [6NxN] to [6xNxN]
+    #if cs_data.shape[-2] == 6*cs_data.shape[-1]:
+    #   full_data = cs_data.copy()
+    #   # Data is non-GMAO
+    #   n_cs = full_data.shape[-1]
+    #   new_shape = [6,n_cs,n_cs]
+    #   if len(full_data.shape) == 2:
+    #      # Data is 2-D
+    #      full_data = np.reshape(full_data,new_shape)
+    #   else:
+    #      # Ugh
+    #      n_layers = full_data.shape[0]
+    #      old_data = full_data
+    #      full_data = np.zeros((n_layers,6,n_cs,n_cs))
+    #      for i_layer in range(n_layers):
+    #         full_data[i_layer,:,:,:] = np.reshape(old_data[i_layer,:,:],new_shape)
+    #   return full_data
+    #else:
+    #   return cs_data
+
+def unshape_cs_arb(cs_data):
+    # Go from [...,6,N,N] to [...,6N,N]
+    in_shape = cs_data.shape
+    if in_shape[-2] == in_shape[-1]:
+       # Data is GMAO
+       in_data = cs_data.copy()
+       n_cs = in_shape[-1]
+       out_shape = np.zeros(len(in_shape)-1,int)
+       out_shape[:-2] = in_shape[:-3]
+       out_shape[-2:] = [6*n_cs,n_cs]
+       if in_shape == 2:
+          # Data is 2-D
+          out_data = np.reshape(in_data,out_shape)
+       else:
+          # Ugh
+          n_other = int(np.product(in_shape[:-3]))
+          in_reshape = np.reshape(in_data,[-1,6,n_cs,n_cs])
+          out_reshape = np.zeros((in_reshape.shape[0],6*n_cs,n_cs))
+          for i_other in range(n_other):
+             out_reshape[i_other,...] = np.reshape(in_reshape[i_other,...],[1,6*n_cs,n_cs])
+          out_data = np.reshape(out_reshape,out_shape)
+       return out_data
     else:
        return cs_data
 
 def unshape_cs(cs_data):
-    # Go from [6xNxN] to [6NxN]
-    if cs_data.shape[-2] == cs_data.shape[-1]:
-       full_data = np.squeeze(cs_data.copy())
-       # Data is non-GMAO
-       n_cs = full_data.shape[-1]
-       new_shape = [6*n_cs,n_cs]
-       if len(full_data.shape) == 3:
-          # Data is 2-D
-          full_data = np.reshape(full_data,new_shape)
-       else:
-          # Ugh
-          n_layers = full_data.shape[0]
-          old_data = full_data
-          full_data = np.zeros((n_layers,6*n_cs,n_cs))
-          for i_layer in range(n_layers):
-             full_data[i_layer,:,:] = np.reshape(old_data[i_layer,:,:,:],new_shape)
-       return full_data
-    else:
-       return cs_data
+    return unshape_cs_arb(cs_data)
+    ## Go from [6xNxN] to [6NxN]
+    #if cs_data.shape[-2] == cs_data.shape[-1]:
+    #   full_data = np.squeeze(cs_data.copy())
+    #   # Data is non-GMAO
+    #   n_cs = full_data.shape[-1]
+    #   new_shape = [6*n_cs,n_cs]
+    #   if len(full_data.shape) == 3:
+    #      # Data is 2-D
+    #      full_data = np.reshape(full_data,new_shape)
+    #   else:
+    #      # Ugh
+    #      n_layers = full_data.shape[0]
+    #      old_data = full_data
+    #      full_data = np.zeros((n_layers,6*n_cs,n_cs))
+    #      for i_layer in range(n_layers):
+    #         full_data[i_layer,:,:] = np.reshape(old_data[i_layer,:,:,:],new_shape)
+    #   return full_data
+    #else:
+    #   return cs_data
 
 def l2c(ll_data,cs_grid=None,ll_grid=None,regridder_list=None):
     '''
