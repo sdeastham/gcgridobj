@@ -7,6 +7,27 @@ import xarray
 import warnings
 import os
 
+def regrid(in_data,regridder_obj):
+    # Get the shapes
+    if isinstance(regridder_obj,list):
+       # Input, output, or both are cubed sphere
+       shape_in = regridder_obj[0].shape_in
+       shape_out = regridder_obj[0].shape_out
+       # ASSUMPTION: Square = CS; rectangular = LL
+       cs_in  = shape_in[0] == shape_in[1]
+       cs_out = shape_out[0] == shape_out[1]
+       if cs_in and cs_out:
+          return c2c_arb(in_data,regridder_obj)
+       elif cs_in and (not cs_out):
+          return c2l_arb(in_data,regridder_obj)
+       elif (not cs_in) and cs_out:
+          return l2c_arb(in_data,regridder_obj)
+       else:
+          raise ValueError('Cannot automatically determine appropriate regridding routine')
+    else:
+       # Lat-lon
+       return l2l_arb(in_data,regridder_obj)
+
 def reshape_cs_arb(cs_data):
     # Go from [...,6N,N] to [...,6,N,N]
     in_shape = cs_data.shape
