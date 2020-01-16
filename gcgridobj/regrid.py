@@ -101,39 +101,69 @@ def unshape_cs(cs_data):
     #else:
     #   return cs_data
 
+def l2c_arb(ll_data,regridder_list):
+    '''
+    # regrid lat-lon data to cubed sphere
+    # Allows for arbitrary leading dimensions
+    '''
+    single_layer = len(ll_data.shape) == 2
+    if single_layer:
+       in_reshape = np.reshape(ll_data,[1]  + list(ll_data.shape))
+    else:
+       in_reshape = np.reshape(ll_data,[-1] + list(ll_data.shape[-2:]))
+
+    # How many slices do we have?
+    n_samples = in_reshape.shape[0]
+
+    # Get all data from regridders
+    n_cs_out = regridder_list[0]._grid_out.coords[0][0].shape[-1]
+    
+    out_reshape = np.zeros((n_samples,6,n_cs_out,n_cs_out))
+    for i_sample in range(n_samples):
+       for i_face in range(6):
+          out_reshape[i_sample,i_face,...] = regridder_list[i_face](in_reshape[i_sample,...])
+
+    if single_layer:
+       cs_data = out_reshape[0,...]
+    else:
+       cs_data = np.reshape(out_reshape,list(ll_data.shape[:-2]) + [6,n_cs_out,n_cs_out])
+
+    return cs_data 
+
 def l2c(ll_data,cs_grid=None,ll_grid=None,regridder_list=None):
     '''
     # regrid lat-lon data to cubed sphere
     '''
-    single_layer = len(ll_data.shape) == 2
-    if single_layer:
-       full_data = np.zeros((1,ll_data.shape[0],ll_data.shape[1]))
-       full_data[0,:,:] = ll_data.copy()
-    else:
-       full_data = ll_data.copy()
+    #single_layer = len(ll_data.shape) == 2
+    #if single_layer:
+    #   full_data = np.zeros((1,ll_data.shape[0],ll_data.shape[1]))
+    #   full_data[0,:,:] = ll_data.copy()
+    #else:
+    #   full_data = ll_data.copy()
 
-    full_shape = full_data.shape
-    n_lev = full_shape[0]
+    #full_shape = full_data.shape
+    #n_lev = full_shape[0]
 
     if regridder_list is None:
        warnings.warn('Regridder list will become a required argument in a coming version of gcgridobj',FutureWarning)
        regridder_list = gen_l2c_regridder(cs_grid=cs_grid,ll_grid=ll_grid)
 
-    # Get cs grid size from regridder_list
-    out_shape = regridder_list[0]._grid_out.coords[0][0].shape
-    n_cs = out_shape[0]
+    ## Get cs grid size from regridder_list
+    #out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    #n_cs = out_shape[0]
 
-    cs_data = np.zeros((n_lev,6,n_cs,n_cs))
-    for i_lev in range(n_lev):
-       for i_face in range(6):
-          cs_data[i_lev,i_face,:,:] = regridder_list[i_face](full_data[i_lev,:,:])
+    #cs_data = np.zeros((n_lev,6,n_cs,n_cs))
+    #for i_lev in range(n_lev):
+    #   for i_face in range(6):
+    #      cs_data[i_lev,i_face,:,:] = regridder_list[i_face](full_data[i_lev,:,:])
 
-    if single_layer:
-       cs_data = np.squeeze(cs_data) 
+    #if single_layer:
+    #   cs_data = np.squeeze(cs_data) 
 
-    return cs_data 
+    #return cs_data 
+    return l2c_arb(ll_data,regridder_list)
 
-def c2c_arb(cs_data,regridder_list=None):
+def c2c_arb(cs_data):
     '''
     Regrid cubed sphere data to different cs resolution
     Assumes data is [...,6,N,N] in shape
@@ -200,43 +230,76 @@ def c2c(cs_data,regridder_list=None):
 
     #return out_data 
 
+def c2l_arb(cs_data,regridder_list):
+    '''
+    # regrid cubed-sphere data to lat-lon
+    # Allows for arbitrary leading dimensions
+    '''
+    single_layer = len(cs_data.shape) == 3
+    if single_layer:
+       in_reshape = np.reshape(cs_data,[1]  + list(cs_data.shape))
+    else:
+       in_reshape = np.reshape(cs_data,[-1] + list(cs_data.shape[-3:]))
+
+    # How many slices do we have?
+    n_samples = in_reshape.shape[0]
+
+    # Get all data from regridders
+    out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    # Note unusual ordering - coords are [lon x lat] for some reason
+    n_lon = out_shape[0]
+    n_lat = out_shape[1]
+    
+    out_reshape = np.zeros((n_samples,n_lat,n_lon))
+    for i_sample in range(n_samples):
+       for i_face in range(6):
+          out_reshape[i_sample,...] += regridder_list[i_face](in_reshape[i_sample,...])
+
+    if single_layer:
+       ll_data = out_reshape[0,...]
+    else:
+       ll_data = np.reshape(out_reshape,list(cs_data.shape[:-3]) + [n_lat,n_lon])
+
+    return ll_data 
+
 def c2l(cs_data,ll_grid=None,cs_grid=None,regridder_list=None):
     '''
     # regrid cubed sphere data to lat-lon
     '''
-    full_data = cs_data.copy()
+    #full_data = cs_data.copy()
 
-    # Assume the CS data is 3D
-    single_layer = len(full_data.shape) == 3
-    if single_layer:
-       layer_shape = list(full_data.shape)
-       full_shape = layer_shape.copy()
-       full_shape.insert(0,1)
-       full_data = np.reshape(full_data,full_shape)
-    else:
-       layer_shape = full_data.shape[1:]
+    ## Assume the CS data is 3D
+    #single_layer = len(full_data.shape) == 3
+    #if single_layer:
+    #   layer_shape = list(full_data.shape)
+    #   full_shape = layer_shape.copy()
+    #   full_shape.insert(0,1)
+    #   full_data = np.reshape(full_data,full_shape)
+    #else:
+    #   layer_shape = full_data.shape[1:]
 
-    full_shape = full_data.shape
-    n_lev = full_shape[0]
+    #full_shape = full_data.shape
+    #n_lev = full_shape[0]
 
     if regridder_list is None:
        warnings.warn('Regridder list will become a required argument in a coming version of gcgridobj',FutureWarning)
        regridder_list = gen_c2l_regridder(cs_grid=cs_grid,ll_grid=ll_grid)
 
-    # Get all data from regridders
-    out_shape = regridder_list[0]._grid_out.coords[0][0].shape
-    n_lon = out_shape[0]
-    n_lat = out_shape[1]
+    ## Get all data from regridders
+    #out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    #n_lon = out_shape[0]
+    #n_lat = out_shape[1]
 
-    ll_data = np.zeros((n_lev,n_lat,n_lon))
-    for i_lev in range(n_lev):
-       for i_face in range(6):
-          ll_data[i_lev,:,:] += regridder_list[i_face](full_data[i_lev,i_face,:,:])
+    #ll_data = np.zeros((n_lev,n_lat,n_lon))
+    #for i_lev in range(n_lev):
+    #   for i_face in range(6):
+    #      ll_data[i_lev,:,:] += regridder_list[i_face](full_data[i_lev,i_face,:,:])
 
-    if single_layer:
-       ll_data = np.squeeze(ll_data) 
+    #if single_layer:
+    #   ll_data = np.squeeze(ll_data) 
 
-    return ll_data 
+    #return ll_data 
+    return c2l_arb(cs_data,regridder_list)
 
 def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
     # What kind of grids are these?
