@@ -41,7 +41,7 @@ def calc_cs_area(cs_res=None,cs_grid=None):
     import numpy as np
     # Calculate area on a cubed sphere
     if cs_res is None:
-        cs_res = cs_grid['lon_b'].shape[-1]
+        cs_res = cs_grid['lon_b'].shape[-1] - 1
     elif cs_grid is None:
         cs_grid = cubedsphere.csgrid_GMAO(cs_res)
     elif cs_grid is not None and cs_res is not None:
