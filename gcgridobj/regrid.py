@@ -133,38 +133,72 @@ def l2c(ll_data,cs_grid=None,ll_grid=None,regridder_list=None):
 
     return cs_data 
 
+def c2c_arb(cs_data,regridder_list=None):
+    '''
+    Regrid cubed sphere data to different cs resolution
+    Assumes data is [...,6,N,N] in shape
+    '''
+    full_data = cs_data.copy()
+
+    single_layer = len(full_data.shape) == 3
+    if single_layer:
+       in_reshape = np.reshape(full_data,[1]  + list(full_data.shape))
+    else:
+       in_reshape = np.reshape(full_data,[-1] + list(full_data.shape[-3:]))
+
+    # How many CS slices do we have?
+    n_samples = in_reshape.shape[0]
+
+    # Get all data from regridders
+    n_cs_out = regridder_list[0]._grid_out.coords[0][0].shape[-1]
+    
+    out_reshape = np.zeros((n_samples,6,n_cs_out,n_cs_out))
+    for i_sample in range(n_samples):
+       for i_face in range(6):
+          out_reshape[i_sample,i_face,:,:] += regridder_list[i_face](
+                                              in_reshape[i_sample,i_face,:,:])
+
+    if single_layer:
+       out_data = out_reshape[0,...]
+    else:
+       out_data = np.reshape(out_reshape,list(full_data.shape[:-3]) + 
+                                         [6,n_cs_out,n_cs_out])
+
+    return out_data 
+
 def c2c(cs_data,regridder_list=None):
     '''
     # regrid cubed sphere data to different cs resolution
     '''
-    full_data = cs_data.copy()
+    return c2c_arb(cs_data,regridder_list)
+    #full_data = cs_data.copy()
 
-    # Assume the CS data is 3D
-    single_layer = len(full_data.shape) == 3
-    if single_layer:
-       layer_shape = list(full_data.shape)
-       full_shape = layer_shape.copy()
-       full_shape.insert(0,1)
-       full_data = np.reshape(full_data,full_shape)
-    else:
-       layer_shape = full_data.shape[1:]
+    ## Assume the CS data is 3D
+    #single_layer = len(full_data.shape) == 3
+    #if single_layer:
+    #   layer_shape = list(full_data.shape)
+    #   full_shape = layer_shape.copy()
+    #   full_shape.insert(0,1)
+    #   full_data = np.reshape(full_data,full_shape)
+    #else:
+    #   layer_shape = full_data.shape[1:]
 
-    full_shape = full_data.shape
-    n_lev = full_shape[0]
+    #full_shape = full_data.shape
+    #n_lev = full_shape[0]
 
-    # Get all data from regridders
-    out_shape = regridder_list[0]._grid_out.coords[0][0].shape
-    n_cs_out = out_shape[-1]
+    ## Get all data from regridders
+    #out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    #n_cs_out = out_shape[-1]
 
-    out_data = np.zeros((n_lev,6,n_cs_out,n_cs_out))
-    for i_lev in range(n_lev):
-       for i_face in range(6):
-          out_data[i_lev,i_face,:,:] += regridder_list[i_face](full_data[i_lev,i_face,:,:])
+    #out_data = np.zeros((n_lev,6,n_cs_out,n_cs_out))
+    #for i_lev in range(n_lev):
+    #   for i_face in range(6):
+    #      out_data[i_lev,i_face,:,:] += regridder_list[i_face](full_data[i_lev,i_face,:,:])
 
-    if single_layer:
-       out_data = np.squeeze(out_data) 
+    #if single_layer:
+    #   out_data = np.squeeze(out_data) 
 
-    return out_data 
+    #return out_data 
 
 def c2l(cs_data,ll_grid=None,cs_grid=None,regridder_list=None):
     '''
@@ -216,7 +250,7 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
           # Grids are identical
           regrid_obj = None
        else:
-          regridder_obj=[]
+          regrid_obj=[]
           with warnings.catch_warnings():
               warnings.filterwarnings("ignore", message="Input array is not F_CONTIGUOUS. Will affect performance.")
               # Assume the faces align
@@ -229,8 +263,8 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
                                  'lon':   grid_out['lon'][i_face],
                                  'lat_b': grid_out['lat_b'][i_face], 
                                  'lon_b': grid_out['lon_b'][i_face]}
-                 fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_c{:d}f{:d}'.format(method,cs_in,i_face,cs_out,i_face))
-                 regridder_obj.append(xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,filename=fname))
+                 fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_c{:d}f{:d}'.format(method,n_in,i_face,n_out,i_face))
+                 regrid_obj.append(xesmf.Regridder(sub_grid_in,sub_grid_out,method=method,reuse_weights=True,filename=fname))
     elif cs_in:
        # CS -> LL
        regrid_obj = gen_c2l_regridder(cs_grid=grid_in,ll_grid=grid_out,method=method,grid_dir=grid_dir)
@@ -248,6 +282,10 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
        regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,
                                     filename=fname)
     return regrid_obj
+
+# Aliases
+gen_l2l_regridder = gen_regridder
+gen_c2c_regridder = gen_regridder
 
 def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
     regridder_list=[]
