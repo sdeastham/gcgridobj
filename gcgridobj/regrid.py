@@ -163,7 +163,7 @@ def l2c(ll_data,cs_grid=None,ll_grid=None,regridder_list=None):
     #return cs_data 
     return l2c_arb(ll_data,regridder_list)
 
-def c2c_arb(cs_data):
+def c2c_arb(cs_data,regridder_list):
     '''
     Regrid cubed sphere data to different cs resolution
     Assumes data is [...,6,N,N] in shape
@@ -253,7 +253,7 @@ def c2l_arb(cs_data,regridder_list):
     out_reshape = np.zeros((n_samples,n_lat,n_lon))
     for i_sample in range(n_samples):
        for i_face in range(6):
-          out_reshape[i_sample,...] += regridder_list[i_face](in_reshape[i_sample,...])
+          out_reshape[i_sample,...] += regridder_list[i_face](in_reshape[i_sample,i_face,...])
 
     if single_layer:
        ll_data = out_reshape[0,...]
@@ -300,6 +300,34 @@ def c2l(cs_data,ll_grid=None,cs_grid=None,regridder_list=None):
 
     #return ll_data 
     return c2l_arb(cs_data,regridder_list)
+
+def l2l(in_data,regridder_obj):
+    single_layer = len(in_data.shape) == 2
+    if single_layer:
+       in_reshape = np.reshape(in_data,[1]  + list(in_data.shape))
+    else:
+       in_reshape = np.reshape(in_data,[-1] + list(in_data.shape[-2:]))
+
+    # How many slices do we have?
+    n_samples = in_reshape.shape[0]
+
+    out_shape = regridder_obj._grid_out.coords[0][0].shape
+    # Note unusual ordering - coords are [lon x lat] for some reason
+    n_lon = out_shape[0]
+    n_lat = out_shape[1]
+    
+    out_reshape = np.zeros((n_samples,n_lat,n_lon))
+    for i_sample in range(n_samples):
+       out_reshape[i_sample,...] = regridder_obj(in_reshape[i_sample,...])
+
+    if single_layer:
+       out_data = out_reshape[0,...]
+    else:
+       out_data = np.reshape(out_reshape,list(in_data.shape[:-2]) + [n_lat,n_lon])
+
+    return out_data
+
+l2l_arb = l2l
 
 def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
     # What kind of grids are these?
