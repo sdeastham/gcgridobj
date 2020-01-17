@@ -13,8 +13,8 @@ ll2x2 = gcgridobj.latlontools.gen_hrz_grid(lon_stride=2,lat_stride=2,half_polar=
 ll4x5 = gcgridobj.gc_horizontal.gmao_4x5_global
 
 # Lat-lon grid data comes pre-packaged with areas in m2 ("ll2x2['area']), but for cubed sphere we must generate it ourselves
-c24_area = cubedsphere.calc_cs_area(c24)
-c90_area = cubedsphere.calc_cs_area(c90)
+c24_area = gcgridobj.cstools.calc_cs_area(c24)
+c90_area = gcgridobj.cstools.calc_cs_area(c90)
 
 # Regridder objects, all generated through a single helper function
 # Lat-lon (2x2) to cubed-sphere (c90)

@@ -2,6 +2,11 @@ import numpy as np
 import xarray as xr
 from . import physconstants
 
+# Must have:
+# 1. extract_grid (returns a csgrid_GMAO object)
+# 2. grid_area (returns a 6xNxN array)
+# 3. gen_grid (returns a csgrid_GMAO object)
+
 def find_idx(targ_val,bound_vec_full,allow_loop=False):
     # Find the index, assuming evenly-spaced bounds (and allowing for half-polar)
     bound_vec = bound_vec_full.copy()
@@ -62,14 +67,14 @@ def latlon_extract(nc_file,force_poles=True):
     lat_b = latlon_est_bnds(lat,force_poles=force_poles)
     return lon_b, lat_b, lon, lat
 
-def latlon_extract_grid(nc_file,force_poles=True):
+def extract_grid(nc_file,force_poles=True):
     # Extract lat/lons from netCDF4 dataset but return as an xarray object
     [lon_b,lat_b,lon,lat] = latlon_extract(nc_file,force_poles=force_poles)
     return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
                      'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b),
                      'area': (['lat','lon'], latlon_gridarea(lon_b,lat_b))})
 
-def latlon_gridarea(lon_b=None, lat_b=None, hrz_grid=None, r_earth=None):
+def grid_area(lon_b=None, lat_b=None, hrz_grid=None, r_earth=None):
 
     if hrz_grid is not None:
        assert lon_b is None and lat_b is None, "Must provide either a grid object or both the latitude and longitude aedges"
@@ -126,7 +131,7 @@ def make_llvec(lbnd,dl):
     lmid  = latlon_est_mid(ledge)
     return lmid,ledge
 
-def gen_hrz_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_range=None,lat_range=None):
+def gen_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_range=None,lat_range=None):
     # Define a simple rectilinear grid
     
     # Generate longitude edge vector
@@ -166,3 +171,8 @@ def gen_hrz_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_ran
     return xr.Dataset({'lat': (['lat'], lat),'lon': (['lon'], lon),
                      'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b),
                      'area': (['lat','lon'], latlon_gridarea(lon_b,lat_b))})
+
+# Old aliases
+latlon_gridarea = grid_area
+latlon_extract_grid = extract_grid
+gen_hrz_grid = gen_grid
