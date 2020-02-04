@@ -1,15 +1,17 @@
 import numpy as np
+import xarray as xr
 import cubedsphere
 
 # Must have:
-# 1. extract_grid (returns a csgrid_GMAO object)
+# 1. extract_grid (returns an xarray Dataset)
 # 2. grid_area (returns a 6xNxN array)
-# 3. gen_grid (returns a csgrid_GMAO object)
+# 3. gen_grid (returns an xarray Dataset)
 
 def extract_grid(ds,src_var='Xdim'):
     # Extract grid from xarray dataset but return a cubedsphere grid
     n_cs = ds[src_var].shape[-1]
-    return cubedsphere.csgrid_GMAO(n_cs)
+    #return cubedsphere.csgrid_GMAO(n_cs)
+    return gen_grid(n_cs)
 
 def face_area(lon_b, lat_b, r_sphere = 6.375e6):
     """Calculate area of cubed-sphere grid cells on one face
@@ -105,4 +107,14 @@ def grid_area(cs_grid=None,cs_res=None):
     return cs_area
 
 def gen_grid(n_cs):
-    return cubedsphere.csgrid_GMAO(n_cs)
+    cs_temp = cubedsphere.csgrid_GMAO(n_cs)
+    return xr.Dataset({'nf':     (['nf'],np.array(range(6))),
+                       'Ydim':   (['Ydim'],np.array(range(n_cs))),
+                       'Xdim':   (['Xdim'],np.array(range(n_cs))),
+                       'Ydim_b': (['Ydim_b'],np.array(range(n_cs+1))),
+                       'Xdim_b': (['Xdim_b'],np.array(range(n_cs+1))),
+                       'lat':    (['nf','Ydim','Xdim'], cs_temp['lat']),
+                       'lon':    (['nf','Ydim','Xdim'], cs_temp['lon']),
+	     	  'lat_b':  (['nf','Ydim_b','Xdim_b'], cs_temp['lat_b']),
+	     	  'lon_b':  (['nf','Ydim_b','Xdim_b'], cs_temp['lon_b']),
+                       'area':   (['nf','Ydim','Xdim'], grid_area(cs_temp))})

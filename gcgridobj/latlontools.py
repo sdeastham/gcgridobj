@@ -3,9 +3,9 @@ import xarray as xr
 from . import physconstants
 
 # Must have:
-# 1. extract_grid (returns a csgrid_GMAO object)
+# 1. extract_grid (returns an xarray Dataset)
 # 2. grid_area (returns a 6xNxN array)
-# 3. gen_grid (returns a csgrid_GMAO object)
+# 3. gen_grid (returns an xarray Dataset)
 
 def find_idx(targ_val,bound_vec_full,allow_loop=False):
     # Find the index, assuming evenly-spaced bounds (and allowing for half-polar)

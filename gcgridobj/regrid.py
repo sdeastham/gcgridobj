@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import cubedsphere
-from gcgridobj import gc_horizontal, gc_vertical
+from gcgridobj import gc_horizontal, gc_vertical, cstools
 import numpy as np
 import xesmf
 import xarray
@@ -490,4 +490,5 @@ def guess_n_cs(cs_data_shape):
 def guess_cs_grid(cs_data_shape):
     # Made this consistent with guess_ll_grid
     n_cs, is_gmao = guess_n_cs(cs_data_shape)
-    return cubedsphere.csgrid_GMAO(n_cs)
+    #return cubedsphere.csgrid_GMAO(n_cs)
+    return cstools.gen_grid(n_cs)
