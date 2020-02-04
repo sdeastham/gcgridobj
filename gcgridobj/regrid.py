@@ -7,6 +7,12 @@ import xarray
 import warnings
 import os
 
+class regridder:
+    def __init__(self,xe_regridder):
+       self.xe_regridder = xe_regridder
+    def __call__(self,data):
+       return regrid(data,self.xe_regridder)
+
 def regrid(in_data,regridder_obj):
     # Get the shapes
     if isinstance(regridder_obj,list):
@@ -350,7 +356,7 @@ def l2l(in_data,regridder_obj):
 
 l2l_arb = l2l
 
-def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
+def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=False):
     # What kind of grids are these?
     cs_in  = len(grid_in['lat'])  == 6
     cs_out = len(grid_out['lat']) == 6
@@ -393,7 +399,12 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.'):
                               method,n_lat_in,n_lon_in,n_lat_out,n_lon_out))
        regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,
                                     filename=fname)
-    return regrid_obj
+
+    if make_obj:
+       # Make it a little fancier...
+       return regridder(regrid_obj)
+    else:
+       return regrid_obj
 
 # Aliases
 gen_l2l_regridder = gen_regridder
