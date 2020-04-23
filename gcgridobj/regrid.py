@@ -6,6 +6,13 @@ import xesmf
 import xarray
 import warnings
 import os
+import scipy.sparse
+
+class vrt_regridder:
+    def __init__(self,xmat):
+        self.xmat = xmat
+    def __call__(self,data):
+        return regrid_vertical(data,self.xmat)
 
 class regridder:
     def __init__(self,xe_regridder):
@@ -356,7 +363,7 @@ def l2l(in_data,regridder_obj):
 
 l2l_arb = l2l
 
-def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=False):
+def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=True):
     # What kind of grids are these?
     cs_in  = len(grid_in['lat'])  == 6
     cs_out = len(grid_out['lat']) == 6
@@ -492,3 +499,114 @@ def guess_cs_grid(cs_data_shape):
     n_cs, is_gmao = guess_n_cs(cs_data_shape)
     #return cubedsphere.csgrid_GMAO(n_cs)
     return cstools.gen_grid(n_cs)
+
+def gen_vrt_regridder(grid_in,grid_out,make_obj=True):
+    xmat = gen_xmat(grid_in.p_edge(),grid_out.p_edge())
+    if make_obj:
+        return vrt_regridder(xmat)
+    else:
+        return xmat
+
+def regrid_vertical(src_data_3D, xmat_regrid):
+    # Performs vertical regridding using a sparse regridding matrix
+    # Assumes that the FIRST dimension of the input data is vertical
+    nlev_in = src_data_3D.shape[0]
+    if xmat_regrid.shape[1] == nlev_in:
+        # Current regridding matrix is for the reverse regrid
+        # Rescale matrix to get the contributions right
+        # Warning: this assumes that the same vertical range is covered
+        warnings.warn('Using inverted regridding matrix. This may cause incorrect extrapolation')
+        xmat_renorm = xmat_regrid.transpose().toarray()
+        for ilev in range(xmat_renorm.shape[1]):
+            norm_fac = np.sum(xmat_renorm[:,ilev])
+            if np.abs(norm_fac) < 1.0e-20:
+                norm_fac = 1.0
+            xmat_renorm[:,ilev] /= norm_fac
+        
+        xmat_renorm = scipy.sparse.coo_matrix(xmat_renorm)
+    elif xmat_regrid.shape[0] == nlev_in:
+        # Matrix correctly dimensioned
+        xmat_renorm = xmat_regrid.copy()
+    else:
+        raise ValueError('Regridding matrix not correctly sized')
+
+    nlev_out = xmat_renorm.shape[1]
+    out_shape = [nlev_out] + list(src_data_3D.shape[1:])
+    n_other = np.product(src_data_3D.shape[1:])
+    temp_data = np.zeros((nlev_out,n_other))
+    #in_data = np.array(src_data_3D)
+    in_data = np.reshape(np.array(src_data_3D),(nlev_in,n_other))
+    for ix in range(n_other):
+        in_data_vec = np.matrix(in_data[:,ix])
+        temp_data[:,ix] = in_data_vec * xmat_renorm
+    out_data = np.reshape(temp_data,out_shape)
+    #for ix in range(in_data.shape[2]):
+    #    for iy in range(in_data.shape[1]):
+    #        in_data_vec = np.matrix(in_data[:,iy,ix])
+    #        out_data[:,iy,ix] = in_data_vec * xmat_renorm
+    return out_data
+
+def gen_xmat(p_edge_from,p_edge_to):
+    n_from = len(p_edge_from) - 1
+    n_to   = len(p_edge_to) - 1
+    
+    # Guess - max number of entries?
+    n_max = max(n_to,n_from)*5
+    
+    # Index being mapped from
+    xmat_i = np.zeros(n_max)
+    # Index being mapped to
+    xmat_j = np.zeros(n_max)
+    # Weights
+    xmat_s = np.zeros(n_max)
+    
+    # Find the first output box which has any commonality with the input box
+    first_from = 0
+    i_to = 0
+    if p_edge_from[0] > p_edge_to[0]:
+        # "From" grid starts at lower altitude (higher pressure)
+        while p_edge_to[0] < p_edge_from[first_from+1]:
+            first_from += 1
+    else:
+        # "To" grid starts at lower altitude (higher pressure)
+        while p_edge_to[i_to+1] > p_edge_from[0]:
+            i_to += 1
+    
+    p_base_to = p_edge_to[i_to]
+    p_top_to  = p_edge_to[i_to+1]
+    frac_to_total = 0.0
+    
+    i_weight = 0
+    for i_from in range(first_from,n_from):
+        p_base_from = p_edge_from[i_from]
+        p_top_from = p_edge_from[i_from+1]
+        
+        # Climb the "to" pressures until you intersect with this box
+        while i_to < n_to and p_base_from <= p_edge_to[i_to+1]:
+            i_to += 1
+            frac_to_total = 0.0
+
+        # Now, loop over output layers as long as there is any overlap,
+        # i.e. as long as the base of the "to" layer is below the
+        # top of the "from" layer
+        last_box = False
+        
+        while p_edge_to[i_to] >= p_top_from and not last_box and not i_to >= n_to:
+            p_base_common = min(p_base_from,p_edge_to[i_to])
+            p_top_common = max(p_top_from,p_edge_to[i_to+1])
+            # Fraction of source box
+            frac_from = (p_base_common - p_top_common)/(p_base_from-p_top_from)
+            # Fraction of target box
+            frac_to   = (p_base_common - p_top_common)/(p_edge_to[i_to]-p_edge_to[i_to+1])
+            #print(frac_to)
+            
+            xmat_i[i_weight] = i_from
+            xmat_j[i_weight] = i_to
+            xmat_s[i_weight] = frac_to
+            
+            i_weight += 1
+            last_box = p_edge_to[i_to+1] <= p_top_from
+            if not last_box:
+                i_to += 1
+            
+    return scipy.sparse.coo_matrix((xmat_s[:i_weight],(xmat_i[:i_weight],xmat_j[:i_weight])),shape=(n_from,n_to))
