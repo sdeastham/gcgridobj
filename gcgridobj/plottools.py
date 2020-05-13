@@ -5,6 +5,7 @@ from gcgridobj import regrid
 import numpy as np
 import warnings
 import cartopy.io.shapereader as shpreader
+from . import atmos_isa_mini
 
 __all__ = ['plot_zonal','plot_layer',
            'plot_cs','plot_latlon',
@@ -39,28 +40,22 @@ def guess_cs_grid(cs_data_shape):
     warnings.warn('plottools.guess_cs_grid is deprecated. Please use regrid.guess_cs_grid or regrid.guess_n_cs instead',FutureWarning)
     return regrid.guess_n_cs(cs_data_shape)
 
-def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=None,show_colorbar=True,z_edge=None,vert_coord=None):
+def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=None,vert_coord='altitude',sec_axis=False,sec_minor=False):
     '''Plot 2D data as a zonal profile
+    
+
+    Keyword arguments:
+    ax            -- axes to use for plotting (default None, results in new axes)
+    show_colorbar -- show colorbar on right hand side of plot (default True)
+    vert_coord    -- choice of vertical coordinate (default altitude, can be pressure or altitude)
+    z_edge        -- altitude edges in km; alternative to vrt_grid (default None)
+    sec_axis      -- show the other vertical coordinate as a secondary axis (default False)
+    sec_minor     -- show minor tick labels on secondary axis; useful for small alt ranges (default False)
     '''
-
-    if is_pressure is not None:
-       warnings.warn("is_pressure option is deprecated. Use vert_coord instead", FutureWarning)
-       # Assert compatible options
-       if vert_coord is None:
-          if is_pressure:
-             vert_coord = 'pressure'
-          else:
-             vert_coord = 'altitude'
-       else:
-          raise ValueError("Cannot specify vert_coord and deprecated is_pressure option together")
-
-    # Default option. This will be moved to the argument list once is_pressure is removed
-    if vert_coord is None:
-       vert_coord = 'altitude'
 
     lat_b = hrz_grid['lat_b']
     if vert_coord == 'pressure':
-       alt_b = vrt_grid.p_edge()
+       alt_b = vrt_grid.p_edge().copy()
     else:
        # Use vertical grid description if available, otherwise
        # get explicit z_edge from the user
@@ -90,8 +85,113 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,is_pressure=None,show_colorb
     else:
        raise ValueError('Vertical coordinate {:s} not recognized'.format(vert_coord))
 
+    cb_pad = 0.04
+    if sec_axis:
+       # Need colorbar to appear further out, if used
+       cb_pad = 0.14
+       # EXPERIMENTAL: Shows a secondary axis
+       import matplotlib.ticker as mticker
+       from decimal import Decimal
+       def z_to_p(z):
+          z_copy = np.where(z > 1000,1000,z).flatten()
+          p = atmos_isa_mini.altitude_to_pressure(z_copy*1000)*0.01
+          #print('zp',z_copy,p)
+          return p.reshape(z_copy.shape)
+       def p_to_z(p):
+          p_copy = np.where(p<0.01,0.01,p).flatten()
+          z = atmos_isa_mini.pressure_to_altitude(p_copy*100) * 1.0e-3
+          #print('pz',p_copy,z)
+          return z.reshape(p.shape)
+       if vert_coord == 'pressure':
+          sa_fwd = p_to_z
+          sa_inv = z_to_p
+          sec_name = 'Altitude, km'
+       elif vert_coord == 'altitude':
+          sa_fwd = z_to_p
+          sa_inv = p_to_z
+          sec_name = 'Pressure, hPa'
+
+       # === IF SECONDARY_YAXIS WORKS ===
+       # This SHOULD accomplish the goal - but doesn't seem to work yet
+       # May work with matplotlib 3.2+, but for now use custom function
+#       ax2=ax.secondary_yaxis('right',functions=(sa_fwd,sa_inv))
+       # === ELSE ===
+       # Custom approach using linked axes
+       # The secondary axis is actually identical to the primary one, but
+       # we mark tick points on it based on our transformed vertical coord.
+       # The axes are also linked so that a change in the y-coord of the
+       # primary axis will modify the secondary one. However, changing the
+       # y-scale of the primary axis will not cause an appropriate change 
+       # in the secondary axis. Equally, although the current ticks will
+       # always turn up in the right place when y-limits are changed, new
+       # ticks will not be produced if (for example) a very small altitude
+       # range is desired. 
+       def update_ax2(ax1):
+          y1,y2 = ax1.get_ylim()
+          #ax2.set_ylim(sa_fwd(y1),sa_fwd(y2))
+          ax2.set_ylim(y1,y2)
+          ax2.figure.canvas.draw()
+      
+       ax2 = ax.twinx()
+
+       # log-p and z do not exactly line up - need to identify "by hand"
+       # locations of each tick mark on the new axis
+       if vert_coord == 'altitude':
+          alt_ticks = np.logspace(-2,3,6)
+          alt_minor = []
+          for alt in alt_ticks[:-1]:
+             for sub_alt in np.linspace(2,10,9)[:-1]:
+                alt_minor.append(alt*sub_alt)
+          alt_minor.append(alt_ticks[-1])
+          # Generate the labels
+          def tick_label_gen(ticks):
+             tick_labels = []
+             for tick in ticks:
+                if tick >= 1.0:
+                   tick_label = '{:.0f}'.format(tick)
+                else:
+                   d_tick = Decimal(tick)
+                   (sign, digits, exponent) = d_tick.as_tuple()
+                   tick_exp = len(digits) + exponent - 1
+                   #tick_mag = d_tick.scaleb(-tick_exp).normalize()
+                   #tick_label = '{:.0f}$\\times$10$^{:.0f}$'.format(tick_mag,tick_exp)
+                   tick_label = '{:.1g}'.format(tick)
+                tick_labels.append(tick_label)
+             return tick_labels
+       else:
+          alt_ticks = np.linspace(0,150,16)
+          if sec_minor:
+             alt_minor = [x for x in np.linspace(0,150,151) if x not in alt_ticks]
+          else:
+             alt_minor = []
+          ax2.invert_yaxis()
+          ax2.set_yscale('log')
+          # Generate the labels
+          tick_label_gen = lambda ticks : ['{:.0f}'.format(x) for x in ticks]
+
+       # Now, figure out where on the vertical axes the ticks should actually be
+       alt_ticks_adj = sa_inv(np.array(alt_ticks))
+       alt_minor_adj = sa_inv(np.array(alt_minor))
+
+       # Hard-code the y-ticks and tick labels
+       ax2.set_yticks(alt_ticks_adj)
+       ax2.set_yticklabels(tick_label_gen(alt_ticks))
+       ax2.set_yticks(alt_minor_adj,minor=True)
+       # Force minor ticks to also be shown (dangerous!)
+       if sec_minor:
+          ax2.set_yticklabels(tick_label_gen(alt_minor),minor=True)
+           
+       # Initialize the limits
+       update_ax2(ax)
+
+       # Automatically update ylim of ax2 when ylim of ax1 changes
+       ax.callbacks.connect("ylim_changed", update_ax2)
+       # === END IF ===
+
+       ax2.set_ylabel(sec_name)
+
     if show_colorbar:
-       cb = f.colorbar(im, ax=ax, shrink=0.6, orientation='vertical', pad=0.04)
+       cb = f.colorbar(im, ax=ax, shrink=0.6, orientation='vertical', pad=cb_pad)
     else:
        cb = None
 
