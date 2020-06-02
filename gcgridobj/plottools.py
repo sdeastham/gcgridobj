@@ -40,7 +40,8 @@ def guess_cs_grid(cs_data_shape):
     warnings.warn('plottools.guess_cs_grid is deprecated. Please use regrid.guess_cs_grid or regrid.guess_n_cs instead',FutureWarning)
     return regrid.guess_n_cs(cs_data_shape)
 
-def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=None,vert_coord='altitude',sec_axis=False,sec_minor=False):
+def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=None,vert_coord='altitude',
+               sec_axis=False,sec_minor=False,sec_ticklabels=True,sec_axlabel=True):
     '''Plot 2D data as a zonal profile
     
 
@@ -178,7 +179,7 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
        ax2.set_yticklabels(tick_label_gen(alt_ticks))
        ax2.set_yticks(alt_minor_adj,minor=True)
        # Force minor ticks to also be shown (dangerous!)
-       if sec_minor:
+       if sec_minor and sec_ticklabels:
           ax2.set_yticklabels(tick_label_gen(alt_minor),minor=True)
            
        # Initialize the limits
@@ -188,7 +189,13 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
        ax.callbacks.connect("ylim_changed", update_ax2)
        # === END IF ===
 
-       ax2.set_ylabel(sec_name)
+       if sec_axlabel:
+          ax2.set_ylabel(sec_name)
+       else:
+          ax2.set_ylabel('')
+
+       if not sec_ticklabels:
+          ax2.set_yticklabels([])
 
     if show_colorbar:
        cb = f.colorbar(im, ax=ax, shrink=0.6, orientation='vertical', pad=cb_pad)
