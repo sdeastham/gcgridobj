@@ -5,6 +5,7 @@ import warnings
 # Horizontal global grids first
 gmao_4x5_global       = latlontools.gen_hrz_grid(lat_stride=4.0, lon_stride=5.0, half_polar=True,center_180=True)
 gmao_2x25_global      = latlontools.gen_hrz_grid(lat_stride=2.0, lon_stride=2.5, half_polar=True,center_180=True)
+gmao_1x1_global       = latlontools.gen_hrz_grid(lat_stride=1.0, lon_stride=1.0, half_polar=False,center_180=True)
 gmao_05x0666_global   = latlontools.gen_hrz_grid(lat_stride=0.5, lon_stride=2/3, half_polar=True,center_180=True)
 gmao_05x0625_global   = latlontools.gen_hrz_grid(lat_stride=0.5, lon_stride=5/8, half_polar=True,center_180=True)
 gmao_025x03125_global = latlontools.gen_hrz_grid(lat_stride=0.25,lon_stride=5/16,half_polar=True,center_180=True)
@@ -20,6 +21,7 @@ gmao_05x0625_us       = latlontools.gen_hrz_grid(lat_stride=0.5, lon_stride=5/8,
 # All grids
 global_grid_inventory = [gmao_4x5_global,
                          gmao_2x25_global,
+                         gmao_1x1_global,
                          gmao_05x0666_global,
                          gmao_05x0625_global,
                          gmao_025x03125_global]
