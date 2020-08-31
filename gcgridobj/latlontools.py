@@ -61,8 +61,23 @@ def find_idx(targ_val,bound_vec_full,allow_loop=False):
 
 def latlon_extract(nc_file,force_poles=True):
     # Attempt to extract lat and lon data from a netCDF4 dataset
-    lon = nc_file['lon'][:]
-    lat = nc_file['lat'][:]
+    lon_name = None
+    lat_name = None
+    nc_vars = nc_file.variables.keys()
+    if 'lon' in nc_vars:
+        lon_name = 'lon'
+    elif 'longitude' in nc_vars:
+        lon_name = 'longitude'
+    else:
+        raise ValueError('No longitude information found')
+    if 'lat' in nc_vars:
+        lat_name = 'lat'
+    elif 'latitude' in nc_vars:
+        lat_name = 'latitude'
+    else:
+        raise ValueError('No latitude information found')
+    lon = np.ma.filled(nc_file[lon_name][:],0.0)
+    lat = np.ma.filled(nc_file[lat_name][:],0.0)
     lon_b = latlon_est_bnds(lon)
     lat_b = latlon_est_bnds(lat,force_poles=force_poles)
     return lon_b, lat_b, lon, lat
@@ -94,9 +109,10 @@ def grid_area(lon_b=None, lat_b=None, hrz_grid=None, r_earth=None):
             lon += 360.0
         lon_abs.append(lon)
         lastlon = lon
-    
+   
     n_lat = lat_b.size - 1
     n_lon = lon_b.size - 1
+
     # Total surface area in each meridional band (allows for a regional domain)
     merid_area = 2*np.pi*r_earth*r_earth*(lon_abs[-1]-lon_abs[0])/(360.0*n_lon)
     grid_area = np.empty([n_lon,n_lat])
