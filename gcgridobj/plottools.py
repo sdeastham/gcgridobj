@@ -40,7 +40,8 @@ def guess_cs_grid(cs_data_shape):
     warnings.warn('plottools.guess_cs_grid is deprecated. Please use regrid.guess_cs_grid or regrid.guess_n_cs instead',FutureWarning)
     return regrid.guess_n_cs(cs_data_shape)
 
-def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=None,vert_coord='altitude',sec_axis=False,sec_minor=False):
+def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=None,vert_coord='altitude',
+               sec_axis=False,sec_minor=False,sec_ticklabels=True,sec_axlabel=True):
     '''Plot 2D data as a zonal profile
     
 
@@ -178,7 +179,7 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
        ax2.set_yticklabels(tick_label_gen(alt_ticks))
        ax2.set_yticks(alt_minor_adj,minor=True)
        # Force minor ticks to also be shown (dangerous!)
-       if sec_minor:
+       if sec_minor and sec_ticklabels:
           ax2.set_yticklabels(tick_label_gen(alt_minor),minor=True)
            
        # Initialize the limits
@@ -188,7 +189,13 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
        ax.callbacks.connect("ylim_changed", update_ax2)
        # === END IF ===
 
-       ax2.set_ylabel(sec_name)
+       if sec_axlabel:
+          ax2.set_ylabel(sec_name)
+       else:
+          ax2.set_ylabel('')
+
+       if not sec_ticklabels:
+          ax2.set_yticklabels([])
 
     if show_colorbar:
        cb = f.colorbar(im, ax=ax, shrink=0.6, orientation='vertical', pad=cb_pad)
@@ -197,7 +204,7 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
 
     return im, cb
 
-def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,coastlines=True):
+def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,coastlines=True,**kwargs):
 
     if crs_data is None:
        crs_data = crs_data_standard
@@ -217,14 +224,14 @@ def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show
     elif len(ld_shape) == 3:
        # Could this be a valid CS dataset?
        assert ld_shape[0] == 6 and (ld_shape[1] == ld_shape[2]), 'Layer data shape invalid (3D and not CS)'
-       im_obj = plot_cs(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot)
+       im_obj = plot_cs(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot,**kwargs)
     elif ld_shape[0] == 6*ld_shape[1]:
        # Assume cubed sphere
        is_cs = True
-       im_obj = plot_cs(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot)
+       im_obj = plot_cs(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot,**kwargs)
     else:
        # Assume lat-lon
-       im_obj = plot_latlon(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot)
+       im_obj = plot_latlon(layer_data,hrz_grid=hrz_grid,ax=ax,crs_data=crs_data,crs_plot=crs_plot,**kwargs)
 
     # If cubed-sphere, use the first image
     is_cs = isinstance(im_obj, list)
@@ -266,18 +273,19 @@ def plot_latlon(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,sho
 
     return im
 
-def update_cs(layer_data,im_vec,hrz_grid=None,cs_threshold=5):
+def update_cs(layer_data,im_vec,hrz_grid=None,cs_threshold=None):
     # WARNING: layer_data must be [6 x N x N]
-    if hrz_grid is None:
-       # Try to figure out the grid from the layer data
-       #n_cs, is_gmao = guess_cs_grid(layer_data.shape)    
-       #hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
-       hrz_grid = regrid.guess_cs_grid(layer_data.shape)    
-    masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
+    if cs_threshold is not None:
+        if hrz_grid is None:
+            # Try to figure out the grid from the layer data
+            hrz_grid = regrid.guess_cs_grid(layer_data.shape)    
+        masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
+    else:
+        masked_data = layer_data
     for i_face in range(6):
-       im_vec[i_face].set_array(masked_data[i_face,:,:].ravel())
+        im_vec[i_face].set_array(masked_data[i_face,:,:].ravel())
 
-def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,cs_threshold=5.0):
+def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,cs_threshold=None):
 
     # 2019-12-17: dropped support for non-GMAO grids
     #n_cs, is_gmao = regrid.guess_n_cs(layer_data.shape)    
@@ -293,20 +301,27 @@ def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_co
        # Try to figure out the grid from the layer data
        #hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
        hrz_grid = regrid.guess_cs_grid(layer_data.shape)
-    
-    masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
+  
+    # A pending PR for Cartopy is expected to fix an issue where cells crossing the antimeridian
+    # are incorrectly plotted. Until then (and for users with older versions of cartopy), setting
+    # cs_threshold to a non-zero value will at least mask out these cells. A value of 5 seems to
+    # work (somewhat) well, at least for C24 data.
+    if cs_threshold is not None:
+        masked_data = np.ma.masked_where(np.abs(hrz_grid['lon'] - 180.0) < cs_threshold, layer_data)
+    else:
+        masked_data = layer_data
  
     im_vec = []
     for i_face in range(6):
-       im = ax.pcolormesh(hrz_grid['lon_b'][i_face,:,:],hrz_grid['lat_b'][i_face,:,:],masked_data[i_face,:,:],transform=crs_data)
+       lon_b = np.mod(hrz_grid['lon_b'][i_face,:,:],360.0)
+       im = ax.pcolormesh(lon_b,hrz_grid['lat_b'][i_face,:,:],masked_data[i_face,:,:],transform=crs_data)
        im_vec.append(im)
 
     c_lim = [np.min(layer_data),np.max(layer_data)]
     if (c_lim[0] == c_lim[1]):
        c_lim = [c_lim[0] - 0.5,c_lim[1] + 0.5]
 
-    for im in im_vec:
-       im.set_clim(c_lim)
+    set_clim(im_vec,c_lim)
 
     return im_vec
 
@@ -382,6 +397,11 @@ def set_clim(im_obj,c_lim=None,cmap=None):
           # Assume max
           c_lim = [-c_lim,c_lim]
        im_obj.set_clim(c_lim)
+       # Since Cartopy 0.19.0, there is a hidden set of polygons for GeoQuadMesh objects
+       # if they cross the antimeridian. Their color limits need to be fixed separately
+       wrapped_obj = getattr(im_obj, "_wrapped_collection_fix", None)
+       if wrapped_obj is not None:
+          wrapped_obj.set_clim(c_lim)
        if cmap is not None:
           im_obj.set_cmap(cmap)
     return None
