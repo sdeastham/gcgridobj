@@ -9,6 +9,15 @@ This is a minimal python package which provides objects and routines useful for 
 * https://github.com/jiaweizhuang/cubedsphere
 * https://github.com/jiaweizhuang/xesmf
 
+### Installation steps
+
+1. Make sure that you have the above requirements
+2. Clone this repo to a safe location: `git clone https://github.com/sdeastham/gcgridobj.git /home/your_username/Python/gcgridobj`
+3. Navigate to your clone of the repo: `cd /home/your_username/Python/gcgridobj`
+4. Use `pip` to install it, using the `-e` option if you wish to be able to modify the install later: `pip install -e .`
+
+If you perform these steps from within your `conda` environment, you will find that `gcgridobj` is now available whenever you use that environment. Note that you can always remove gcgridobj by calling `pip uninstall gcgridobj` while within the environment.
+
 ## Examples
 
 ### Generating a horizontal grid description
