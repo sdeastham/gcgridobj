@@ -21,8 +21,10 @@ class regridder:
        return regrid(data,self.xe_regridder)
 
 def regrid(in_data,regridder_obj):
+    if regridder_obj is None:
+       return in_data
     # Get the shapes
-    if isinstance(regridder_obj,list):
+    elif isinstance(regridder_obj,list):
        # Input, output, or both are cubed sphere
        shape_in = regridder_obj[0].shape_in
        shape_out = regridder_obj[0].shape_out
@@ -402,10 +404,16 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=T
        n_lat_in  = grid_in['lat'].size
        n_lon_out = grid_out['lon'].size
        n_lat_out = grid_out['lat'].size
-       fname = os.path.join(grid_dir,'{:s}_{:d}x{:d}_{:d}x{:d}'.format(
-                              method,n_lat_in,n_lon_in,n_lat_out,n_lon_out))
-       regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,
-                                    filename=fname)
+       if ((n_lon_in == n_lon_out) and (n_lat_in == n_lat_out) and 
+           (np.allclose(grid_in['lon'].values,grid_out['lon'].values)) and
+           (np.allclose(grid_in['lat'].values,grid_out['lat'].values))):
+           # In/out are identical
+           regrid_obj = None
+       else:
+           fname = os.path.join(grid_dir,'{:s}_{:d}x{:d}_{:d}x{:d}'.format(
+                                  method,n_lat_in,n_lon_in,n_lat_out,n_lon_out))
+           regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,
+                                        filename=fname)
 
     if make_obj:
        # Make it a little fancier...
