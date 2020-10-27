@@ -2,6 +2,11 @@ import numpy as np
 import xarray as xr
 import cubedsphere
 
+# For point-finding
+import pyproj
+import shapely.ops
+import shapely.geometry
+
 # Must have:
 # 1. extract_grid (returns an xarray Dataset)
 # 2. grid_area (returns a 6xNxN array)
@@ -118,3 +123,97 @@ def gen_grid(n_cs):
 	     	  'lat_b':  (['nf','Ydim_b','Xdim_b'], cs_temp['lat_b']),
 	     	  'lon_b':  (['nf','Ydim_b','Xdim_b'], cs_temp['lon_b']),
                        'area':   (['nf','Ydim','Xdim'], grid_area(cs_temp))})
+
+def corners_to_xy(xc, yc):
+    """ Creates xy coordinates for each grid-box. The shape is (n, n, 5) where n is the cubed-sphere size.
+    Developed, tested, and supplied by Liam Bindle.
+
+    :param xc: grid-box corner longitudes; shape (n+1, n+1)
+    :param yc: grid-box corner latitudes; shape (n+1, n+1)
+    :return: grid-box xy coordinates
+    """
+    p0 = slice(0, -1)
+    p1 = slice(1, None)
+    boxes_x = np.moveaxis(np.array([xc[p0, p0], xc[p1, p0], xc[p1, p1], xc[p0, p1], xc[p0, p0]]), 0, -1)
+    boxes_y = np.moveaxis(np.array([yc[p0, p0], yc[p1, p0], yc[p1, p1], yc[p0, p1], yc[p0, p0]]), 0, -1)
+    return np.moveaxis(np.array([boxes_x, boxes_y]), 0, -1)
+
+
+def central_angle(x0, y0, x1, y1):
+    """ Returns the distance (central angle) between coordinates (x0, y0) and (x1, y1). This is vectorizable.
+    Developed, tested, and supplied by Liam Bindle.
+
+    :param x0: pt0's longitude (degrees)
+    :param y0: pt0's latitude  (degrees)
+    :param x1: pt1's longitude (degrees)
+    :param y1: pt1's latitude  (degrees)
+    :return: Distance          (degrees)
+    """
+    RAD2DEG = 180 / np.pi
+    DEG2RAD = np.pi / 180
+    x0 = x0 * DEG2RAD
+    x1 = x1 * DEG2RAD
+    y0 = y0 * DEG2RAD
+    y1 = y1 * DEG2RAD
+    return np.arccos(np.sin(y0) * np.sin(y1) + np.cos(y0) * np.cos(y1) * np.cos(np.abs(x0-x1))) * RAD2DEG
+
+
+def find_index(lat,lon,grid):
+    # Based on a routine developed, tested, and supplied by Liam Bindle.
+    lon_vec = np.asarray(lon)
+    lat_vec = np.asarray(lat)
+    n_find = lon_vec.size
+
+    # Get the corners
+    x_corners = grid['lon_b'].values
+    y_corners = grid['lat_b'].values
+    x_centers = grid['lon'].values
+    y_centers = grid['lat'].values
+    x_centers_flat = x_centers.flatten()
+    y_centers_flat = y_centers.flatten()
+
+    cs_size = x_centers.shape[-1]
+
+    # Generate everything that will be reused
+    # Get XY polygon definitions for grid boxes
+    xy = np.zeros((6, cs_size, cs_size, 5, 2))  # 5 (x,y) points defining polygon corners (first and last are same)
+    for nf in range(6):
+        xy[nf, ...] = corners_to_xy(xc=x_corners[nf, :, :], yc=y_corners[nf, :, :])
+    latlon_crs = pyproj.Proj("+proj=latlon")
+
+    # Find 4 shortest distances to (x_find, y_find)
+    idx = np.full((3,n_find),np.int(0))
+    for x_find, y_find, i_find in zip(np.nditer(lon_vec),np.nditer(lat_vec),list(range(n_find))):
+        # Center on x_find, y_find
+        gnomonic_crs = pyproj.Proj(f'+proj=gnom +lat_0={y_find} +lon_0={x_find}')
+
+        # Generate all distances
+        distances = central_angle(x_find, y_find, x_centers_flat, y_centers_flat)
+        four_nearest_indexes = np.argpartition(distances, 4)[:4]
+
+        # Unravel 4 smallest indexes
+        four_nearest_indexes = np.unravel_index(four_nearest_indexes, (6, cs_size, cs_size))
+        four_nearest_xy = xy[four_nearest_indexes]
+        four_nearest_polygons = [shapely.geometry.Polygon(polygon_xy) for polygon_xy in four_nearest_xy]
+
+        # Transform to gnomonic projection
+        gno_transform = pyproj.Transformer.from_proj(latlon_crs, gnomonic_crs, always_xy=True).transform
+        four_nearest_polygons_gno = [shapely.ops.transform(gno_transform, polygon) for polygon in four_nearest_polygons]
+
+        # Figure out which polygon contains the point
+        Xy_find = shapely.geometry.Point(x_find, y_find)
+        Xy_find_GNO = shapely.ops.transform(gno_transform, Xy_find)
+        polygon_contains_point = [polygon.contains(Xy_find_GNO) for polygon in four_nearest_polygons_gno]
+
+        #assert np.count_nonzero(polygon_contains_point) == 1
+        assert np.count_nonzero(polygon_contains_point) > 0
+        # The first will be selected, if more than one
+        polygon_with_point = np.argmax(polygon_contains_point)
+
+        # Get original index
+        nf = four_nearest_indexes[0][polygon_with_point]
+        YDim= four_nearest_indexes[1][polygon_with_point]
+        XDim= four_nearest_indexes[2][polygon_with_point]
+
+        idx[:,i_find] = [nf,YDim,XDim]
+    return idx
