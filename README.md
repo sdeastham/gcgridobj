@@ -25,12 +25,13 @@ If you perform these steps from within your `conda` environment, you will find t
 Horizontal grid descriptions are just `xarray` datasets which include either:
 * 1-D `lon` and `lat` variables
 * 2-D `xDim` and `yDim` variables
+
 To generate a grid description, there are three options:
 1. Use a pre-calculated grid description from `gcgridobj.gc_horizontal`. For example, GEOS-Chem's 4x5 grid is taken from GMAO, and can be retrieved as `grid = gcgridobj.gc_horizontal.gmao_4x5_global`
 2. Generate a rectilinear latitude-longitude grid using `gcgridobj.latlontools`. For example, a simple 1x1 grid can be generated as `grid = gcgridobj.latlontools.gen_grid(lon_stride=1,lat_stride=1,half_polar=False,center_180=False)`. This function can also be used to generate nested grids.
 3. Generate a gnomonic cubed-sphere grid using `gcridobj.cstools`. For exampe, a c24 grid can be generated as `grid = gcgridobj.cstools.gen_grid(24)`.
 
-The horizontal grid descriptions are used to handle all plotting and regridding in `gcgridobj`. They also carry a copy of the grid cell area - for a given grid description `grid`, take a look at `grid.area.values`.
+The horizontal grid descriptions are used to handle all plotting and regridding in `gcgridobj`. They also carry a copy of the grid cell area - for a given grid description `grid`, take a look at `grid['area'].values`.
 
 ### Generating a vertical grid description
 
