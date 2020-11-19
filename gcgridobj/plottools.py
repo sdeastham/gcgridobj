@@ -402,6 +402,8 @@ def set_clim(im_obj,c_lim=None,cmap=None):
        wrapped_obj = getattr(im_obj, "_wrapped_collection_fix", None)
        if wrapped_obj is not None:
           wrapped_obj.set_clim(c_lim)
+          if cmap is not None:
+             wrapped_obj.set_cmap(cmap)
        if cmap is not None:
           im_obj.set_cmap(cmap)
     return None
