@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+
+# Prevent failure if importing gcgridobj without an X server
+import matplotlib as mpl
+mpl.use('Agg')
+
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from gcgridobj import regrid
