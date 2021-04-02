@@ -1,3 +1,7 @@
+# Prevent failure if importing gcgridobj without an X server
+import matplotlib as mpl
+mpl.use('Agg')
+
 import numpy as np
 import gcgridobj
 import matplotlib.pyplot as plt
