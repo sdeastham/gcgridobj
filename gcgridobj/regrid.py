@@ -8,6 +8,8 @@ import warnings
 import os
 import scipy.sparse
 
+regrid_archive='regridders'
+
 class vrt_regridder:
     def __init__(self,xmat):
         self.xmat = xmat
@@ -365,7 +367,9 @@ def l2l(in_data,regridder_obj):
 
 l2l_arb = l2l
 
-def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=True):
+def gen_regridder(grid_in,grid_out,method='conservative',grid_dir=None,make_obj=True):
+    if grid_dir is None:
+       grid_dir = regrid_archive
     # What kind of grids are these?
     cs_in  = len(grid_in['lat'])  == 6
     cs_out = len(grid_out['lat']) == 6
@@ -409,9 +413,9 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=T
            (np.allclose(grid_in['lat'].values,grid_out['lat'].values))):
            # In/out are identical
            regrid_obj = None
-       else:
-           fname = os.path.join(grid_dir,'{:s}_{:d}x{:d}_{:d}x{:d}'.format(
-                                  method,n_lat_in,n_lon_in,n_lat_out,n_lon_out))
+       else: 
+           fname = os.path.join(grid_dir,'{:s}_{:s}_{:s}'.format(
+                                  method,gen_ll_name(grid_in),gen_ll_name(grid_out)))
            regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,
                                         filename=fname)
 
@@ -425,7 +429,38 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir='.',make_obj=T
 gen_l2l_regridder = gen_regridder
 gen_c2c_regridder = gen_regridder
 
-def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
+def gen_ll_name(grid):
+    lat = np.asarray(grid['lat'])
+    lon = np.asarray(grid['lon'])
+    dlat = lat[1:] - lat[:-1]
+    dlon = lon[1:] - lon[:-1]
+    n_lon = lon.size
+    n_lat = lat.size
+    # Check regional
+    if (np.median(dlat) * (n_lat+1)) < 179.9:
+        #print(np.median(dlat),n_lat+1,np.median(dlat)*(n_lat+1),'PX')
+        Pstr = 'PX'
+    else:
+        #print(lat[0],lat[-1],np.min(dlat),np.median(dlat))
+        if (lat[0] < (-90.0 + 1.0e-10) or lat[-1] > (90 - 1.0e-10) or
+                 (np.min(dlat) < 0.9 * np.median(dlat))):
+            Pstr = 'PC'
+        else:
+            Pstr = 'PE'
+    if np.median(dlon) * (n_lon+1) < 359.9:
+        #print(np.median(dlon),n_lon,np.median(dlon)*n_lon+1)
+        Dstr = 'DX'
+    else:
+        if np.min(np.abs(np.mod(lon,360.0)-180.0)) > (0.1*np.median(dlon)):
+            #print(np.min(np.abs(np.mod(lon,360.0)-180.0)),'DE')
+            Dstr = 'DE'
+        else:
+            Dstr = 'DC'
+    return '{:d}x{:d}{:s}'.format(n_lat,n_lon,Pstr + Dstr)
+
+def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
+    if grid_dir is None:
+       grid_dir = regrid_archive
     regridder_list=[]
     n_lon = ll_grid['lon'].size
     n_lat = ll_grid['lat'].size
@@ -437,11 +472,13 @@ def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
                        'lon':   cs_grid['lon'][i_face],
                        'lat_b': cs_grid['lat_b'][i_face], 
                        'lon_b': cs_grid['lon_b'][i_face]}
-           fname = os.path.join(grid_dir,'{:s}_{:d}x{:d}_c{:d}f{:d}'.format(method,n_lat,n_lon,n_cs,i_face))
+           fname = os.path.join(grid_dir,'{:s}_{:s}_c{:d}f{:d}'.format(method,gen_ll_name(ll_grid),n_cs,i_face))
            regridder_list.append(xesmf.Regridder(ll_grid,sub_grid,method=method,reuse_weights=True,filename=fname))
     return regridder_list
 
-def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
+def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
+    if grid_dir is None:
+       grid_dir = regrid_archive
     regridder_list=[]
     n_lon = ll_grid['lon'].size
     n_lat = ll_grid['lat'].size
@@ -453,7 +490,7 @@ def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir='.'):
                        'lon':   cs_grid['lon'][i_face],
                        'lat_b': cs_grid['lat_b'][i_face], 
                        'lon_b': cs_grid['lon_b'][i_face]}
-           fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_{:d}x{:d}'.format(method,n_cs,i_face,n_lat,n_lon))
+           fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_{:s}'.format(method,n_cs,i_face,gen_ll_name(ll_grid)))
            regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method=method,reuse_weights=True,filename=fname))
     return regridder_list
 
