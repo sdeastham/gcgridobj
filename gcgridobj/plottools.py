@@ -304,7 +304,6 @@ def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_co
 
     if hrz_grid is None:
        # Try to figure out the grid from the layer data
-       #hrz_grid = cubedsphere.csgrid_GMAO(n_cs)
        hrz_grid = regrid.guess_cs_grid(layer_data.shape)
   
     # A pending PR for Cartopy is expected to fix an issue where cells crossing the antimeridian

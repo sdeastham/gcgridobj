@@ -1,11 +1,12 @@
 import numpy as np
 import xarray as xr
-import cubedsphere
 
 # For point-finding
 import pyproj
 import shapely.ops
 import shapely.geometry
+
+import gcpy
 
 # Must have:
 # 1. extract_grid (returns an xarray Dataset)
@@ -13,9 +14,8 @@ import shapely.geometry
 # 3. gen_grid (returns an xarray Dataset)
 
 def extract_grid(ds,src_var='Xdim'):
-    # Extract grid from xarray dataset but return a cubedsphere grid
+    # Extract grid from xarray dataset but return a cubed-sphere grid
     n_cs = ds[src_var].shape[-1]
-    #return cubedsphere.csgrid_GMAO(n_cs)
     return gen_grid(n_cs)
 
 def face_area(lon_b, lat_b, r_sphere = 6.375e6):
@@ -102,7 +102,7 @@ def grid_area(cs_grid=None,cs_res=None):
     if cs_res is None:
         cs_res = cs_grid['lon_b'].shape[-1] - 1
     elif cs_grid is None:
-        cs_grid = cubedsphere.csgrid_GMAO(cs_res)
+        cs_grid = gcpy.csgrid_GMAO(cs_res)
     elif cs_grid is not None and cs_res is not None:
         assert cs_res == cs_grid['lon_b'].shape[-1], 'Routine grid_area received inconsistent inputs' 
     cs_area = np.zeros((6,cs_res,cs_res))
@@ -111,8 +111,11 @@ def grid_area(cs_grid=None,cs_res=None):
         cs_area[i_face,:,:] = cs_area[0,:,:].copy()
     return cs_area
 
-def gen_grid(n_cs):
-    cs_temp = cubedsphere.csgrid_GMAO(n_cs)
+def gen_grid(n_cs, stretch_factor=None, target_lon=None, target_lat=None):
+    if stretch_factor is not None:
+        cs_temp, ignore = gcpy.make_grid_SG(n_cs,stretch_factor,target_lon,target_lat)
+    else:
+        cs_temp = gcpy.csgrid_GMAO(n_cs)
     return xr.Dataset({'nf':     (['nf'],np.array(range(6))),
                        'Ydim':   (['Ydim'],np.array(range(n_cs))),
                        'Xdim':   (['Xdim'],np.array(range(n_cs))),
