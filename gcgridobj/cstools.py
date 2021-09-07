@@ -1,11 +1,6 @@
 import numpy as np
 import xarray as xr
 
-# For point-finding
-import pyproj
-import shapely.ops
-import shapely.geometry
-
 import gcpy
 
 # Must have:
@@ -162,6 +157,11 @@ def central_angle(x0, y0, x1, y1):
 
 
 def find_index(lat,lon,grid):
+    # For point-finding
+    import pyproj
+    import shapely.ops
+    import shapely.geometry
+
     # Based on a routine developed, tested, and supplied by Liam Bindle.
     lon_vec = np.asarray(lon)
     lat_vec = np.asarray(lat)
