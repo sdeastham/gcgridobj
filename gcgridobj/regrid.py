@@ -153,7 +153,10 @@ def l2c_arb(ll_data,regridder_list):
     n_samples = in_reshape.shape[0]
 
     # Get all data from regridders
-    n_cs_out = regridder_list[0]._grid_out.coords[0][0].shape[-1]
+    try:
+        n_cs_out = regridder_list[0]._grid_out.coords[0][0].shape[-1]
+    except:
+        n_cs_out = regridder_list[0].grid_out.coords[0][0].shape[-1]
     
     out_reshape = np.zeros((n_samples,6,n_cs_out,n_cs_out))
     for i_sample in range(n_samples):
@@ -217,7 +220,10 @@ def c2c_arb(cs_data,regridder_list):
     n_samples = in_reshape.shape[0]
 
     # Get all data from regridders
-    n_cs_out = regridder_list[0]._grid_out.coords[0][0].shape[-1]
+    try:
+        n_cs_out = regridder_list[0]._grid_out.coords[0][0].shape[-1]
+    except:
+        n_cs_out = regridder_list[0].grid_out.coords[0][0].shape[-1]
     
     out_reshape = np.zeros((n_samples,6,n_cs_out,n_cs_out))
     for i_sample in range(n_samples):
@@ -282,7 +288,10 @@ def c2l_arb(cs_data,regridder_list):
     n_samples = in_reshape.shape[0]
 
     # Get all data from regridders
-    out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    try:
+        out_shape = regridder_list[0]._grid_out.coords[0][0].shape
+    except:
+        out_shape = regridder_list[0].grid_out.coords[0][0].shape
     # Note unusual ordering - coords are [lon x lat] for some reason
     n_lon = out_shape[0]
     n_lat = out_shape[1]
@@ -348,7 +357,10 @@ def l2l(in_data,regridder_obj):
     # How many slices do we have?
     n_samples = in_reshape.shape[0]
 
-    out_shape = regridder_obj._grid_out.coords[0][0].shape
+    try:
+        out_shape = regridder_obj._grid_out.coords[0][0].shape
+    except:
+        out_shape = regridder_obj.grid_out.coords[0][0].shape
     # Note unusual ordering - coords are [lon x lat] for some reason
     n_lon = out_shape[0]
     n_lat = out_shape[1]
@@ -393,8 +405,8 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir=None,make_obj=
                                  'lon':   grid_out['lon'][i_face],
                                  'lat_b': grid_out['lat_b'][i_face], 
                                  'lon_b': grid_out['lon_b'][i_face]}
-                 fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_c{:d}f{:d}'.format(method,n_in,i_face,n_out,i_face))
-                 regrid_obj.append(xesmf.Regridder(sub_grid_in,sub_grid_out,method=method,reuse_weights=True,filename=fname))
+                 fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_c{:d}f{:d}.nc'.format(method,n_in,i_face,n_out,i_face))
+                 regrid_obj.append(xesmf.Regridder(sub_grid_in,sub_grid_out,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
     elif cs_in:
        # CS -> LL
        regrid_obj = gen_c2l_regridder(cs_grid=grid_in,ll_grid=grid_out,method=method,grid_dir=grid_dir)
@@ -413,9 +425,9 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir=None,make_obj=
            # In/out are identical
            regrid_obj = None
        else: 
-           fname = os.path.join(grid_dir,'{:s}_{:s}_{:s}'.format(
+           fname = os.path.join(grid_dir,'{:s}_{:s}_{:s}.nc'.format(
                                   method,gen_ll_name(grid_in),gen_ll_name(grid_out)))
-           regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=True,
+           regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=os.path.isfile(fname),
                                         filename=fname)
 
     if make_obj:
@@ -471,8 +483,8 @@ def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
                        'lon':   cs_grid['lon'][i_face],
                        'lat_b': cs_grid['lat_b'][i_face], 
                        'lon_b': cs_grid['lon_b'][i_face]}
-           fname = os.path.join(grid_dir,'{:s}_{:s}_c{:d}f{:d}'.format(method,gen_ll_name(ll_grid),n_cs,i_face))
-           regridder_list.append(xesmf.Regridder(ll_grid,sub_grid,method=method,reuse_weights=True,filename=fname))
+           fname = os.path.join(grid_dir,'{:s}_{:s}_c{:d}f{:d}.nc'.format(method,gen_ll_name(ll_grid),n_cs,i_face))
+           regridder_list.append(xesmf.Regridder(ll_grid,sub_grid,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
     return regridder_list
 
 def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
@@ -489,8 +501,8 @@ def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
                        'lon':   cs_grid['lon'][i_face],
                        'lat_b': cs_grid['lat_b'][i_face], 
                        'lon_b': cs_grid['lon_b'][i_face]}
-           fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_{:s}'.format(method,n_cs,i_face,gen_ll_name(ll_grid)))
-           regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method=method,reuse_weights=True,filename=fname))
+           fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_{:s}.nc'.format(method,n_cs,i_face,gen_ll_name(ll_grid)))
+           regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
     return regridder_list
 
 def guess_ll_grid(ll_data_shape,is_nested=None,first_call=True):
