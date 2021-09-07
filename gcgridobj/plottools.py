@@ -46,7 +46,7 @@ def guess_cs_grid(cs_data_shape):
     return regrid.guess_n_cs(cs_data_shape)
 
 def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=None,vert_coord='altitude',
-               sec_axis=False,sec_minor=False,sec_ticklabels=True,sec_axlabel=True):
+               sec_axis=False,sec_minor=False,sec_ticklabels=True,sec_axlabel=True,**kwargs):
     '''Plot 2D data as a zonal profile
     
 
@@ -80,7 +80,7 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
     else:
        f = ax.figure
 
-    im = ax.pcolormesh(lat_b,alt_b,zonal_data)
+    im = ax.pcolormesh(lat_b,alt_b,zonal_data,**kwargs)
 
     if vert_coord == 'pressure':
        ax.invert_yaxis()
@@ -257,7 +257,7 @@ def plot_layer(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show
 
     return im_obj, cb
 
-def plot_latlon(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True):
+def plot_latlon(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,**kwargs):
     '''Plot 2D lat-lon data
     '''
 
@@ -274,7 +274,7 @@ def plot_latlon(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,sho
     assert len(lon_b) == layer_data.shape[1]+1, 'Layer data incorrectly shaped (longitude)'
     assert len(lat_b) == layer_data.shape[0]+1, 'Layer data incorrectly shaped (latitude)'
 
-    im = ax.pcolormesh(lon_b,lat_b,layer_data,transform=crs_data)
+    im = ax.pcolormesh(lon_b,lat_b,layer_data,transform=crs_data,**kwargs)
 
     return im
 
@@ -290,7 +290,7 @@ def update_cs(layer_data,im_vec,hrz_grid=None,cs_threshold=None):
     for i_face in range(6):
         im_vec[i_face].set_array(masked_data[i_face,:,:].ravel())
 
-def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,cs_threshold=None):
+def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_colorbar=True,cs_threshold=None,**kwargs):
 
     # 2019-12-17: dropped support for non-GMAO grids
     #n_cs, is_gmao = regrid.guess_n_cs(layer_data.shape)    
@@ -318,7 +318,7 @@ def plot_cs(layer_data,hrz_grid=None,ax=None,crs_data=None,crs_plot=None,show_co
     im_vec = []
     for i_face in range(6):
        lon_b = np.mod(hrz_grid['lon_b'][i_face,:,:],360.0)
-       im = ax.pcolormesh(lon_b,hrz_grid['lat_b'][i_face,:,:],masked_data[i_face,:,:],transform=crs_data)
+       im = ax.pcolormesh(lon_b,hrz_grid['lat_b'][i_face,:,:],masked_data[i_face,:,:],transform=crs_data,**kwargs)
        im_vec.append(im)
 
     c_lim = [np.min(layer_data),np.max(layer_data)]
