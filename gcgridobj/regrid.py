@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from gcgridobj import gc_horizontal, gc_vertical, cstools
 import numpy as np
-import xesmf
 import xarray
 import warnings
 import os
@@ -379,6 +378,7 @@ def l2l(in_data,regridder_obj):
 l2l_arb = l2l
 
 def gen_regridder(grid_in,grid_out,method='conservative',grid_dir=None,make_obj=True):
+    import xesmf
     if grid_dir is None:
        grid_dir = regrid_archive
     # What kind of grids are these?
@@ -406,7 +406,11 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir=None,make_obj=
                                  'lat_b': grid_out['lat_b'][i_face], 
                                  'lon_b': grid_out['lon_b'][i_face]}
                  fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_c{:d}f{:d}.nc'.format(method,n_in,i_face,n_out,i_face))
-                 regrid_obj.append(xesmf.Regridder(sub_grid_in,sub_grid_out,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
+                 try:
+                    regrid_obj.append(xesmf.Regridder(sub_grid_in,sub_grid_out,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
+                 except KeyError as e:
+                    print('Regridder object generation failed. If you received a permission error, please check that the output directory {} exists'.format(grid_dir))
+                    raise
     elif cs_in:
        # CS -> LL
        regrid_obj = gen_c2l_regridder(cs_grid=grid_in,ll_grid=grid_out,method=method,grid_dir=grid_dir)
@@ -427,8 +431,12 @@ def gen_regridder(grid_in,grid_out,method='conservative',grid_dir=None,make_obj=
        else: 
            fname = os.path.join(grid_dir,'{:s}_{:s}_{:s}.nc'.format(
                                   method,gen_ll_name(grid_in),gen_ll_name(grid_out)))
-           regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=os.path.isfile(fname),
-                                        filename=fname)
+           try:
+              regrid_obj = xesmf.Regridder(grid_in,grid_out,method=method,reuse_weights=os.path.isfile(fname),
+                                           filename=fname)
+           except KeyError as e:
+              print('Regridder object generation failed. If you received a permission error, please check that the output directory {} exists'.format(grid_dir))
+              raise
 
     if make_obj:
        # Make it a little fancier...
@@ -470,6 +478,7 @@ def gen_ll_name(grid):
     return '{:d}x{:d}{:s}'.format(n_lat,n_lon,Pstr + Dstr)
 
 def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
+    import xesmf
     if grid_dir is None:
        grid_dir = regrid_archive
     regridder_list=[]
@@ -484,10 +493,15 @@ def gen_l2c_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
                        'lat_b': cs_grid['lat_b'][i_face], 
                        'lon_b': cs_grid['lon_b'][i_face]}
            fname = os.path.join(grid_dir,'{:s}_{:s}_c{:d}f{:d}.nc'.format(method,gen_ll_name(ll_grid),n_cs,i_face))
-           regridder_list.append(xesmf.Regridder(ll_grid,sub_grid,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
+           try:
+              regridder_list.append(xesmf.Regridder(ll_grid,sub_grid,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
+           except KeyError as e:
+              print('Regridder object generation failed. If you received a permission error, please check that the output directory {} exists'.format(grid_dir))
+              raise
     return regridder_list
 
 def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
+    import xesmf
     if grid_dir is None:
        grid_dir = regrid_archive
     regridder_list=[]
@@ -502,7 +516,11 @@ def gen_c2l_regridder(cs_grid,ll_grid,method='conservative',grid_dir=None):
                        'lat_b': cs_grid['lat_b'][i_face], 
                        'lon_b': cs_grid['lon_b'][i_face]}
            fname = os.path.join(grid_dir,'{:s}_c{:d}f{:d}_{:s}.nc'.format(method,n_cs,i_face,gen_ll_name(ll_grid)))
-           regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
+           try:
+              regridder_list.append(xesmf.Regridder(sub_grid,ll_grid,method=method,reuse_weights=os.path.isfile(fname),filename=fname))
+           except KeyError as e:
+              print('Regridder object generation failed. If you received a permission error, please check that the output directory {} exists'.format(grid_dir))
+              raise
     return regridder_list
 
 def guess_ll_grid(ll_data_shape,is_nested=None,first_call=True):
