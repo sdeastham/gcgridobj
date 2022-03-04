@@ -6,7 +6,6 @@ This is a minimal python package which provides objects and routines useful for 
 
 ### Requirements
 
-* https://github.com/jiaweizhuang/cubedsphere
 * https://github.com/jiaweizhuang/xesmf
 
 ### Installation steps
