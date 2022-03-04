@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from gcgridobj import gc_horizontal, gc_vertical, cstools
+from gcgridobj import gc_horizontal, cstools
 import numpy as np
 import xarray
 import warnings
