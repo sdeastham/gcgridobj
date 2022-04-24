@@ -188,6 +188,24 @@ def gen_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_range=N
                      'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b),
                      'area': (['lat','lon'], latlon_gridarea(lon_b,lat_b))})
 
+def gen_grid_from_vec(lon,lat):
+    # Generate a simple rectilinear grid from a vector of lats and lons
+    lon_a = np.asarray(lon)
+    lat_a = np.asarray(lat)
+    nlon = np.size(lon_a)
+    nlat = np.size(lat_a)
+    lon_b = np.zeros(nlon + 1)
+    lat_b = np.zeros(nlat + 1)
+    lon_b[1:-1] = (lon_a[1:] + lon_a[:-1])/2.0
+    lat_b[1:-1] = (lat_a[1:] + lat_a[:-1])/2.0
+    lon_b[0]  = lon_b[1] - (2.0*(lon_b[1]-lon[0]))
+    lat_b[0]  = lat_b[1] - (2.0*(lat_b[1]-lat[0]))
+    lon_b[-1]  = lon_b[-2] + (2.0*(lon[-1]-lon_b[-2]))
+    lat_b[-1]  = lat_b[-2] + (2.0*(lat[-1]-lat_b[-2]))
+    return xr.Dataset({'lat': (['lat'], lat_a),'lon': (['lon'], lon_a),
+                     'lat_b': (['lat_b'], lat_b),'lon_b': (['lon_b'], lon_b),
+                     'area': (['lat','lon'], latlon_gridarea(lon_b,lat_b))})
+
 # Old aliases
 latlon_gridarea = grid_area
 latlon_extract_grid = extract_grid
