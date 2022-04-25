@@ -226,7 +226,7 @@ def determine_M2_runID(collection,targ_date):
     return '{:d}{:02d}'.format(stream,vn)
     
 def read_GEOS(t_list,var_list,f_type,lon_bounds=None,lat_bounds=None,t_offset=None,src='GEOS-FP',
-              verify_f_type=False,MERRA2_version='5.12.4',MERRA2_runID=None,verbose=True):
+              verify_f_type=False,MERRA2_version='5.12.4',MERRA2_runID=None,verbose=True,max_tries=5):
     if not isinstance(t_list,list):
         t_list = [t_list]
     if verbose and use_tqdm:
@@ -309,8 +309,32 @@ def read_GEOS(t_list,var_list,f_type,lon_bounds=None,lat_bounds=None,t_offset=No
         hrz_grid = None
         ll_idx   = None
         for url_obj in url_list:
-            data_item, hrz_grid, ll_idx = url_obj.read_data(var_list,lon_bounds=lon_bounds,lat_bounds=lat_bounds,
-                                                            t_offset=t_offset,hrz_grid=hrz_grid,latlon_idx=ll_idx)
+            n_tries = 1
+            read_success = False
+            if verbose and use_tqdm:
+                n_ok = pbar.n
+            while (not read_success):
+                try:
+                    data_item, hrz_grid, ll_idx = url_obj.read_data(var_list,lon_bounds=lon_bounds,lat_bounds=lat_bounds,
+                                                                    t_offset=t_offset,hrz_grid=hrz_grid,latlon_idx=ll_idx)
+                    read_success = True
+                except RuntimeError as e:
+                    # Allow up to [max_tries] failed attempts
+                    if 'DAP failure' not in str(e):
+                        raise
+                    elif n_tries < max_tries:
+                        # Try again...
+                        if verbose:
+                            err_msg = 'Network failure while reading {} on attempt {:d} of {:d}. Retrying..'.format(os.path.basename(url_obj.url),n_tries,max_tries)
+                            if use_tqdm:
+                                pbar.write(err_msg)
+                                pbar.reset()
+                                pbar.update(n_ok)
+                            else:
+                                print(err_msg)
+                        n_tries += 1
+                    else:
+                        raise
             data_vec.append(data_item)
         if verbose and use_tqdm:
             pbar.close()
