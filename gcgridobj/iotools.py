@@ -321,6 +321,10 @@ def read_GEOS(t_list,var_list,f_type,lon_bounds=None,lat_bounds=None,t_offset=No
     return data, hrz_grid
 
 def read_GEOS_range(t_range,src,f_type,**kwargs):
+    # Read in all data between two dates
+    # First date is INCLUSIVE, second is EXCLUSIVE
+    # For example, t_range = [datetime(2017,1,1,0,0,0),datetime(2017,1,2,0,0,0)]
+    # will give all data for 2017-01-01 only
     # Need to determine the file frequency
     if src == 'GEOS-FP':
         freq = int(f_type.split('_')[0][-1])
@@ -335,6 +339,4 @@ def read_GEOS_range(t_range,src,f_type,**kwargs):
     t1 = max(t_range)
     n_reads = int(np.ceil((t1 - t0).total_seconds()/(3600.0 * freq)))
     t_list = [t0 + timedelta(hours=i*freq) for i in range(n_reads)]
-    # Append the final time to be safe
-    t_list.append(t1)
     return read_GEOS(t_list=t_list,f_type=f_type,src=src,**kwargs)
