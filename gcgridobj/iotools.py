@@ -340,3 +340,41 @@ def read_GEOS_range(t_range,src,f_type,**kwargs):
     n_reads = int(np.ceil((t1 - t0).total_seconds()/(3600.0 * freq)))
     t_list = [t0 + timedelta(hours=i*freq) for i in range(n_reads)]
     return read_GEOS(t_list=t_list,f_type=f_type,src=src,**kwargs)
+
+def build_daily_archive(t_range,f_type,out_dir,verbose=True,**kwargs):
+    # Builds a daily archive of GEOS data
+    # Saves one file per day, using the following structure:
+    # out_dir/year/month/f_type.YYYYmmdd.nc4
+    t0 = min(t_range)
+    t1 = max(t_range)
+    first_day = datetime(t0.year,t0.month,t0.day,0,0,0)
+    last_day = datetime(t1.year,t1.month,t1.day,0,0,0)
+    n_days = (last_day - first_day).days
+    assert os.path.isdir(out_dir), 'Output directory {} not found'.format(out_dir)
+    if verbose:
+        if use_tqdm:
+            pbar = tqdm(total=n_days)
+            update = lambda i : pbar.update(1)
+        else:
+            pbar = None
+            update = lambda i : print('{:7.2%} of days processed'.format(i/n_days))
+    try:
+        for i_day in range(n_days):
+            t_curr = first_day + timedelta(days=i_day)
+            out_full = os.path.join(out_dir,'{:04d}'.format(t_curr.year))
+            if not os.path.isdir(out_full):
+                os.mkdir(out_full)
+            out_full = os.path.join(out_full,'{:02d}'.format(t_curr.month))
+            if not os.path.isdir(out_full):
+                os.mkdir(out_full)
+            out_full = os.path.join(out_full,'{:s}.{:s}.nc'.format(f_type,t_curr.strftime('%Y%m%d')))
+            t_next = t_curr + timedelta(days=1)
+            data, hrz_grid = read_GEOS_range(verbose=False,t_range=[t_curr,t_next],f_type=f_type,**kwargs)
+            data.to_netcdf(out_full)
+            data = None
+            if verbose:
+                update(i_day+1)
+    finally:
+        if pbar is not None:
+            pbar.close()
+    return None
