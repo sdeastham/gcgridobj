@@ -6,7 +6,7 @@ mpl.use('Agg')
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from gcgridobj import regrid
+from gcgridobj import regrid, gc_vertical
 import numpy as np
 import warnings
 import cartopy.io.shapereader as shpreader
@@ -59,16 +59,25 @@ def plot_zonal(zonal_data,hrz_grid,vrt_grid,ax=None,show_colorbar=True,z_edge=No
     sec_minor     -- show minor tick labels on secondary axis; useful for small alt ranges (default False)
     '''
 
+    # Check whether the user is providing old-style (p_mid returned through a function call) or
+    # new-style (p_mid is a property) vertical grid definitions
+    new_vrt_grid = isinstance(vrt_grid,gc_vertical.vert_grid_nd)
     lat_b = hrz_grid['lat_b']
     if vert_coord == 'pressure':
-       alt_b = vrt_grid.p_edge().copy()
+       if new_vrt_grid:
+           alt_b = vrt_grid.p_edge
+       else:
+           alt_b = vrt_grid.p_edge().copy()
     else:
        # Use vertical grid description if available, otherwise
        # get explicit z_edge from the user
        if vrt_grid is None:
           assert z_edge is not None, 'Need altitude edges in km'
        elif z_edge is None:
-          z_edge = vrt_grid.z_edge_ISA() / 1000.0
+          if new_vrt_grid:
+             z_edge = vrt_grid.z_edge_ISA / 1000.0
+          else:
+             z_edge = vrt_grid.z_edge_ISA() / 1000.0
        alt_b = z_edge
     
     assert len(zonal_data.shape) == 2, 'Zonal data must be 2-D'

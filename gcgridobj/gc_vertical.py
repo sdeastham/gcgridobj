@@ -53,20 +53,46 @@ class vert_grid_nd:
     @p_sfc.setter
     def p_sfc(self,p):
         # Calculate the pressure grids
-        self.p_edge_nd = self.gen_p_field(p)
-        self.p_mid_nd = (self.p_edge_nd[1:,...]+self.p_edge_nd[:-1,...])/2.0
-        self.z_edge_ISA_nd = self.calc_z_ISA(self.p_edge_nd)
-        self.z_mid_ISA_nd = self.calc_z_ISA(self.p_mid_nd)
+        self._p_edge_nd = self.gen_p_field(p)
+        self._p_mid_nd = (self.p_edge_nd[1:,...]+self.p_edge_nd[:-1,...])/2.0
+        self._z_edge_ISA_nd = self.calc_z_ISA(self.p_edge_nd)
+        self._z_mid_ISA_nd = self.calc_z_ISA(self.p_mid_nd)
         self._p_sfc = p
 
     @p_rep.setter
     def p_rep(self,p):
         # Calculate the pressure grids
-        self.p_edge = self.gen_p_field(p)
-        self.p_mid = (self.p_edge[1:,...]+self.p_edge[:-1,...])/2.0
-        self.z_edge_ISA = self.calc_z_ISA(self.p_edge)
-        self.z_mid_ISA = self.calc_z_ISA(self.p_mid)
+        self._p_edge = self.gen_p_field(p)
+        self._p_mid = (self.p_edge[1:,...]+self.p_edge[:-1,...])/2.0
+        self._z_edge_ISA = self.calc_z_ISA(self.p_edge)
+        self._z_mid_ISA = self.calc_z_ISA(self.p_mid)
         self._p_rep = p
+
+    # Make these read-only define getters but not setters)
+    @property
+    def p_edge_nd(self):
+        return self._p_edge_nd
+    @property
+    def p_mid_nd(self):
+        return self._p_mid_nd
+    @property
+    def z_edge_ISA_nd(self):
+        return self._z_edge_ISA_nd
+    @property
+    def z_mid_ISA_nd(self):
+        return self._z_mid_ISA_nd
+    @property
+    def p_edge(self):
+        return self._p_edge
+    @property
+    def p_mid(self):
+        return self._p_mid
+    @property
+    def z_edge_ISA(self):
+        return self._z_edge_ISA
+    @property
+    def z_mid_ISA(self):
+        return self._z_mid_ISA
 
     def calc_z_ISA(self,p):
         return atmos_isa_mini.pressure_to_altitude(p*100.0)
@@ -124,6 +150,7 @@ _GEOS_72L_BP = np.array([ 1.000000e+00, 9.849520e-01, 9.634060e-01, 9.418650e-01
          0.000000e+00, 0.000000e+00, 0.000000e+00, 0.000000e+00,
          0.000000e+00 ])
 
+# Bad! All copies are the same. Use standard_grid instead
 GEOS_72L_grid = vert_grid(_GEOS_72L_AP, _GEOS_72L_BP)
 
 # Reduced grid
@@ -264,3 +291,20 @@ _GEOS_132L_BP = np.flip(np.array([0.000000, 0.000000, 0.000000, 0.000000, 0.0000
                                   0.883905, 0.896733, 0.908781, 0.920085, 0.930681, 0.940600, 0.949868, 0.958500, 
                                   0.966498, 0.973850, 0.980526, 0.986474, 1.000000 ]))
 GEOS_132L_grid = vert_grid(_GEOS_132L_AP, _GEOS_132L_BP)
+
+def standard_grid(grid_spec,use_nd=True):
+    # Use the N-dimensional vertical grid class?
+    if use_nd:
+        vg = vert_grid_nd
+    else:
+        vg = vert_grid
+    if grid_spec == 'GEOS_72L':
+        return vg(_GEOS_72L_AP, _GEOS_72L_BP)
+    elif grid_spec == 'GEOS_47L':
+        return vg(_GEOS_47L_AP, _GEOS_47L_BP)
+    elif grid_spec == 'GEOS_132L':
+        return vg(_GEOS_132L_AP, _GEOS_132L_BP)
+    elif grid_spec == 'CAM_26L':
+        return vg(_CAM_26L_AP, _CAM_26L_BP)
+    else:
+        raise ValueError('Vertical grid {} not recognized'.format(vg))
