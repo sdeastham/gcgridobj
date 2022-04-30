@@ -13,10 +13,16 @@ except:
 
 class url_reader():
     def __init__(self,url,t_range=None,t_list=None,half_dt_offset=False,verbose=False,pbar=None):
-        # url:            URL of the NetCDF file
-        # t_range:        Start and end of the time range covered by the NetCDF file
-        # t_list:         List of times to be read in
-        # half_dt_offset: Apply a half-dt offset in timestamping (i.e. is this time-averaged)?
+        '''
+        Initializes a url_reader object.
+        Parameters (defaults in []):  
+                url:            URL of the NetCDF file
+                t_range:        Start and end of the time range covered by the NetCDF file [None]
+                t_list:         List of times to be read in [None]
+                half_dt_offset: Apply a half-dt offset in timestamping (i.e. is this time-averaged)? [False]
+                verbose:        Provide updates to the user on progress? [False]
+                pbar:           If using tqdm, this can be the handle for a tqdm progress bar [None]
+        '''
         self.url = url
         self.t_range = t_range
         self.t_list = []
@@ -225,8 +231,46 @@ def determine_M2_runID(collection,targ_date):
             vn = 1
     return '{:d}{:02d}'.format(stream,vn)
     
-def read_GEOS(t_list,var_list,f_type,lon_bounds=None,lat_bounds=None,t_offset=None,src='GEOS-FP',
+def read_GEOS(t_list,var_list,f_type,src,lon_bounds=None,lat_bounds=None,t_offset=None,
               verify_f_type=False,MERRA2_version='5.12.4',MERRA2_runID=None,verbose=True,max_tries=5):
+    '''
+    Retrieve data from NASA's online holdings for either GEOS-FP or MERRA-2. If retrieving from 
+    MERRA-2, the user must have an Earthdata account, and must have set up their machine to provide
+    credentials (see https://disc.gsfc.nasa.gov/data-access). For additional information on MERRA-2
+    data and file naming conventions, see:
+        https://daac.gsfc.nasa.gov/information/documents?title=MERRA-2%20Data%20Access%20%E2%80%93%20Quick%20Guide
+    For additional information on GEOS-FP data and file naming conventions, see:
+        https://gmao.gsfc.nasa.gov/pubs/docs/Lucchesi1203.pdf
+    Required parameters:
+            t_list:         List of times the user wants data for. Must be a list of datetime objects.
+                            Data will be retrieved for the closest valid time stored on file
+            var_list:       List of variables to be retrieved
+            f_type:         File type (e.g. tavg3_asm_Nv for GEOS-FP, or M2T3NVASM for MERRA-2)
+            src:            Data source (either "GEOS-FP" or "MERRA-2")
+    Optional parameters (defaults in []):
+            lon_bounds:     Two-element list of the longitude boundary in degrees East [None].
+                            Must not cross the date line.
+            lat_bounds:     Two-element list of the latitude boundary in degrees North [None]
+            t_offset:       Offset to apply when retrieving data as a datetime.timedelta object.
+                            Only use this if there is an error in the data holdings. Defaults
+                            to [None] for MERRA-2, [timedelta(hours=48)] for GEOS-FP
+            verify_f_type:  Run additional checks to verify that the file type provided is
+                            valid. For MERRA-2 only [False]
+            MERRA2_version: String describing the MERRA-2 data version. This will turn up
+                            in the URL for the MERRA-2 data ["5.12.4"]
+            MERRA2_runID:   Run ID for MERRA-2 as a string in the format "XYY" where X is the
+                            stream number and YY is the version number. The stream reflects
+                            when the data was generated (e.g. data for 2001-10-01 to 2010-12-31
+                            was in stream 3) whereas the version reflects any reprocessing actions
+                            which have been carried out (otherwise the version is 00). See MERRA-2
+                            additional information to determine the appropriate run ID. If not
+                            specified, the run ID is automatically determined based on the stream
+                            and version data available on 2022-04-30 [None]
+            verbose:        Provide user with updates regarding progress [True]
+            max_tries:      Number of times to attempt a download, in case of a network error [5]
+    Returns:
+            data:           xarray Dataset containing grid and variable data for each retrieved time.
+    '''
     if not isinstance(t_list,list):
         t_list = [t_list]
     if verbose and use_tqdm:
@@ -239,8 +283,6 @@ def read_GEOS(t_list,var_list,f_type,lon_bounds=None,lat_bounds=None,t_offset=No
         if src == 'GEOS-FP':
             # Time values in GEOS-FP are a little off - best to set this explicitly
             if t_offset is None:
-                #t_base = datetime(2017,12,1,0,0,0)
-                #t_base = datetime(1,1,1,0,0,0) - timedelta(hours=48)
                 t_offset = timedelta(hours=-48)
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/'
             url_full = url + f_type
@@ -342,7 +384,7 @@ def read_GEOS(t_list,var_list,f_type,lon_bounds=None,lat_bounds=None,t_offset=No
     finally:
         if pbar is not None:
             pbar.close()
-    return data, hrz_grid
+    return data
 
 def read_GEOS_range(t_range,src,f_type,**kwargs):
     # Read in all data between two dates
@@ -393,7 +435,7 @@ def build_daily_archive(t_range,f_type,out_dir,verbose=True,**kwargs):
                 os.mkdir(out_full)
             out_full = os.path.join(out_full,'{:s}.{:s}.nc'.format(f_type,t_curr.strftime('%Y%m%d')))
             t_next = t_curr + timedelta(days=1)
-            data, hrz_grid = read_GEOS_range(verbose=False,t_range=[t_curr,t_next],f_type=f_type,**kwargs)
+            data = read_GEOS_range(verbose=False,t_range=[t_curr,t_next],f_type=f_type,**kwargs)
             data.to_netcdf(out_full)
             data = None
             if verbose:
