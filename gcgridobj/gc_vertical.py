@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse
 from . import atmos_isa_mini
 
+# Original class
 class vert_grid:
     def __init__(self,AP=None,BP=None,p_sfc=1013.25):
         if (AP.size != BP.size) or (AP is None):
@@ -25,6 +26,62 @@ class vert_grid:
         return atmos_isa_mini.pressure_to_altitude(self.p_edge()*100.0)
     def z_mid_ISA(self):
         return atmos_isa_mini.pressure_to_altitude(self.p_mid()*100.0)
+
+# Updated n-dimensional class
+class vert_grid_nd:
+    def __init__(self,AP=None,BP=None,p_sfc=1013.25,p_rep=1013.25):
+        if (AP.size != BP.size) or (AP is None):
+            # Throw error?
+            print('Inconsistent vertical grid specification')
+        self.AP = np.array(AP)
+        self.BP = np.array(BP)
+        # "True" surface pressure (hPa)
+        self.p_sfc = p_sfc
+        # Representative surface pressure (hPa)
+        self.p_rep = p_rep
+    @classmethod
+    def convert(cls,vg):
+        '''Build an N-D vertical grid from a classic object'''
+        return cls(AP=vg.AP,BP=vg.BP,p_sfc=vg.p_sfc)
+    # Avoid unnecessary recalculations
+    @property
+    def p_sfc(self):
+        return self._p_sfc
+    @property
+    def p_rep(self):
+        return self._p_rep
+    @p_sfc.setter
+    def p_sfc(self,p):
+        # Calculate the pressure grids
+        self.p_edge_nd = self.gen_p_field(p)
+        self.p_mid_nd = (self.p_edge_nd[1:,...]+self.p_edge_nd[:-1,...])/2.0
+        self.z_edge_ISA_nd = self.calc_z_ISA(self.p_edge_nd)
+        self.z_mid_ISA_nd = self.calc_z_ISA(self.p_mid_nd)
+        self._p_sfc = p
+
+    @p_rep.setter
+    def p_rep(self,p):
+        # Calculate the pressure grids
+        self.p_edge = self.gen_p_field(p)
+        self.p_mid = (self.p_edge[1:,...]+self.p_edge[:-1,...])/2.0
+        self.z_edge_ISA = self.calc_z_ISA(self.p_edge)
+        self.z_mid_ISA = self.calc_z_ISA(self.p_mid)
+        self._p_rep = p
+
+    def calc_z_ISA(self,p):
+        return atmos_isa_mini.pressure_to_altitude(p*100.0)
+
+    def gen_p_field(self,p_sfc):
+        # Calculate pressure edges using eta coordinate
+        # Assume that p_sfc is spatial only (no time dimension)
+        # Get the terrain-following component first
+        p_edge = np.einsum('i,...->i...',self.BP,p_sfc)
+        # Now get the fixed component
+        AP_rep = self.AP
+        while np.ndim(AP_rep) < np.ndim(p_edge):
+            AP_rep = AP_rep[...,np.newaxis]
+        # Take an N-D view of AP and add it to the terrain-following part
+        return np.broadcast_to(AP_rep,p_edge.shape) + p_edge
 
 # Standard vertical grids
 _GEOS_72L_AP = np.array([ 0.000000e+00, 4.804826e-02, 6.593752e+00, 1.313480e+01,
