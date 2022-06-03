@@ -308,3 +308,25 @@ def standard_grid(grid_spec,use_nd=True):
         return vg(_CAM_26L_AP, _CAM_26L_BP)
     else:
         raise ValueError('Vertical grid {} not recognized'.format(vg))
+
+def extract_grid(nc,p_units=None,AP_var='hyai',BP_var='hybi',P_ref='P0'):
+    # Extract the vertical grid from a NetCDF file
+    # Assumes that the grid is specified as 
+    # A[i] * P0 + B[i] * Ps
+    # where P0 and Ps are in units of pressure, and A and B are unitless
+    # Since we internally work in hPa, if P0 is given in Pa we convert
+    if P_ref is not None:
+        P0 = nc[P_ref]
+        P0_val = P0[...]
+        if P0.units.lower() == 'pa':
+            P0_val /= 100.0
+    else:
+        P0 = 1.0
+    # Our internal formulation is simply P = A + B*Ps, so we combined A and P0
+    AP = nc[AP_var][...] * P0_val
+    BP = nc[BP_var][...]
+    # Flip the data if BP[0] < BP[-1], since that implies that this is a positive=down set
+    if BP[0] < BP[-1]:
+        AP = np.flip(AP)
+        BP = np.flip(BP)
+    return vert_grid_nd(AP=AP,BP=BP)
