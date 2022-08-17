@@ -6,14 +6,16 @@ import numpy as np
 import gcgridobj
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cubedsphere
+#import cubedsphere
 
 # Generate test grids
 # Cubed sphere grids (C24, C90)
-c24 = cubedsphere.csgrid_GMAO(24)
-c90 = cubedsphere.csgrid_GMAO(90)
+#c24 = cubedsphere.csgrid_GMAO(24)
+#c90 = cubedsphere.csgrid_GMAO(90)
+c24 = gcgridobj.cstools.gen_grid(24)
+c90 = gcgridobj.cstools.gen_grid(90)
 # Lat-lon grids (Generic 2x2, standard 4x5)
-ll2x2 = gcgridobj.latlontools.gen_hrz_grid(lon_stride=2,lat_stride=2,half_polar=False,center_180=False)
+ll2x2 = gcgridobj.latlontools.gen_grid(lon_stride=2,lat_stride=2,half_polar=False,center_180=False)
 ll4x5 = gcgridobj.gc_horizontal.gmao_4x5_global
 
 # Lat-lon grid data comes pre-packaged with areas in m2 ("ll2x2['area']), but for cubed sphere we must generate it ourselves
