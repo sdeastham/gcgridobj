@@ -41,6 +41,11 @@ class GCGOAccessor:
                 self._obj[var] = (('nf','Ydim','Xdim'),temp_hg[var].values)
             for var in ['lat_b','lon_b']:
                 self._obj[var] = (('nf','YCdim','XCdim'),temp_hg[var].values)
+        else:
+            temp_hg = latlontools.extract_grid(self._obj)
+            self._obj['area'] = (('lat','lon'),temp_hg['area'].values)
+            for var in ['lat','lon','lat_b','lon_b']:
+                self._obj[var]  = ((var),temp_hg[var].values)
 
     # Getter
     @property
