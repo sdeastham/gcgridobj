@@ -6,7 +6,7 @@ mpl.use('Agg')
 
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from gcgridobj import regrid, gc_vertical
+from . import regrid, gc_vertical
 import numpy as np
 import warnings
 import cartopy.io.shapereader as shpreader
@@ -406,7 +406,9 @@ def set_clim(im_obj,c_lim=None,cmap=None):
        for im in im_obj:
           set_clim(im,c_lim,cmap)
     else:
-       if np.isscalar(c_lim):
+       if c_lim is None:
+          c_lim = im_obj.get_clim()
+       elif np.isscalar(c_lim):
           # Assume max
           c_lim = [-c_lim,c_lim]
        im_obj.set_clim(c_lim)
