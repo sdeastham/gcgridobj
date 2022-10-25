@@ -574,7 +574,7 @@ def guess_cs_grid(cs_data_shape):
     return cstools.gen_grid(n_cs)
 
 def gen_vrt_regridder(grid_in,grid_out,make_obj=True):
-    xmat = gen_xmat(grid_in.p_edge(),grid_out.p_edge())
+    xmat = gen_xmat(grid_in.p_edge,grid_out.p_edge)
     if make_obj:
         return vrt_regridder(xmat)
     else:
