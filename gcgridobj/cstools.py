@@ -3,6 +3,14 @@ import xarray as xr
 
 import gcpy
 
+try:
+    import pyproj
+    import shapely.ops
+    import shapely.geometry
+    find_point_OK = True
+except:
+    find_point_OK = False
+    
 # Must have:
 # 1. extract_grid (returns an xarray Dataset)
 # 2. grid_area (returns a 6xNxN array)
@@ -155,12 +163,55 @@ def central_angle(x0, y0, x1, y1):
     y1 = y1 * DEG2RAD
     return np.arccos(np.sin(y0) * np.sin(y1) + np.cos(y0) * np.cos(y1) * np.cos(np.abs(x0-x1))) * RAD2DEG
 
+def find_index_single(lat,lon,x_centers_flat,y_centers_flat,xy,cs_size,latlon_crs,jitter_size=0.0):
+    #import pyproj
+    #import shapely.ops
+    #import shapely.geometry
+    # Center on x_find, y_find
+    x_find = lon
+    y_find = lat
+    gnomonic_crs = pyproj.Proj(f'+proj=gnom +lat_0={y_find} +lon_0={x_find}')
 
-def find_index(lat,lon,grid):
+    # Generate all distances
+    distances = central_angle(x_find, y_find, x_centers_flat, y_centers_flat)
+    four_nearest_indexes = np.argpartition(distances, 4)[:4]
+
+    # Unravel 4 smallest indexes
+    four_nearest_indexes = np.unravel_index(four_nearest_indexes, (6, cs_size, cs_size))
+    four_nearest_xy = xy[four_nearest_indexes]
+    four_nearest_polygons = [shapely.geometry.Polygon(polygon_xy) for polygon_xy in four_nearest_xy]
+
+    # Transform to gnomonic projection
+    gno_transform = pyproj.Transformer.from_proj(latlon_crs, gnomonic_crs, always_xy=True).transform
+    four_nearest_polygons_gno = [shapely.ops.transform(gno_transform, polygon) for polygon in four_nearest_polygons]
+
+    # Figure out which polygon contains the point
+    Xy_find = shapely.geometry.Point(x_find, y_find)
+    Xy_find_GNO = shapely.ops.transform(gno_transform, Xy_find)
+    polygon_contains_point = [polygon.contains(Xy_find_GNO) for polygon in four_nearest_polygons_gno]
+
+    if np.count_nonzero(polygon_contains_point) == 0:
+        if jitter_size>0.0:
+            # Move longitude by ~1 m
+            nf, YDim, XDim = find_index_single(y_find,x_find+jitter_size,x_centers_flat,y_centers_flat,xy,cs_size,latlon_crs,jitter_size=0.0)
+        else:
+            raise ValueError(f'Point at {x_find:8.2f} E, {y_find:8.2f} N could not be matched')
+    # The first will be selected, if more than one
+    polygon_with_point = np.argmax(polygon_contains_point)
+
+    # Get original index
+    nf   = four_nearest_indexes[0][polygon_with_point]
+    YDim = four_nearest_indexes[1][polygon_with_point]
+    XDim = four_nearest_indexes[2][polygon_with_point]
+
+    return nf, YDim, XDim
+
+def find_index(lat,lon,grid,jitter_size=0.0):
     # For point-finding
-    import pyproj
-    import shapely.ops
-    import shapely.geometry
+    #import pyproj
+    #import shapely.ops
+    #import shapely.geometry
+    assert find_point_OK, "Cannot perform index finding - need pyproj and shapely"
 
     # Based on a routine developed, tested, and supplied by Liam Bindle.
     lon_vec = np.asarray(lon)
@@ -187,36 +238,41 @@ def find_index(lat,lon,grid):
     # Find 4 shortest distances to (x_find, y_find)
     idx = np.full((3,n_find),np.int(0))
     for x_find, y_find, i_find in zip(np.nditer(lon_vec),np.nditer(lat_vec),list(range(n_find))):
-        # Center on x_find, y_find
-        gnomonic_crs = pyproj.Proj(f'+proj=gnom +lat_0={y_find} +lon_0={x_find}')
+        ## Center on x_find, y_find
+        #gnomonic_crs = pyproj.Proj(f'+proj=gnom +lat_0={y_find} +lon_0={x_find}')
 
-        # Generate all distances
-        distances = central_angle(x_find, y_find, x_centers_flat, y_centers_flat)
-        four_nearest_indexes = np.argpartition(distances, 4)[:4]
+        ## Generate all distances
+        #distances = central_angle(x_find, y_find, x_centers_flat, y_centers_flat)
+        #four_nearest_indexes = np.argpartition(distances, 4)[:4]
 
-        # Unravel 4 smallest indexes
-        four_nearest_indexes = np.unravel_index(four_nearest_indexes, (6, cs_size, cs_size))
-        four_nearest_xy = xy[four_nearest_indexes]
-        four_nearest_polygons = [shapely.geometry.Polygon(polygon_xy) for polygon_xy in four_nearest_xy]
+        ## Unravel 4 smallest indexes
+        #four_nearest_indexes = np.unravel_index(four_nearest_indexes, (6, cs_size, cs_size))
+        #four_nearest_xy = xy[four_nearest_indexes]
+        #four_nearest_polygons = [shapely.geometry.Polygon(polygon_xy) for polygon_xy in four_nearest_xy]
 
-        # Transform to gnomonic projection
-        gno_transform = pyproj.Transformer.from_proj(latlon_crs, gnomonic_crs, always_xy=True).transform
-        four_nearest_polygons_gno = [shapely.ops.transform(gno_transform, polygon) for polygon in four_nearest_polygons]
+        ## Transform to gnomonic projection
+        #gno_transform = pyproj.Transformer.from_proj(latlon_crs, gnomonic_crs, always_xy=True).transform
+        #four_nearest_polygons_gno = [shapely.ops.transform(gno_transform, polygon) for polygon in four_nearest_polygons]
 
-        # Figure out which polygon contains the point
-        Xy_find = shapely.geometry.Point(x_find, y_find)
-        Xy_find_GNO = shapely.ops.transform(gno_transform, Xy_find)
-        polygon_contains_point = [polygon.contains(Xy_find_GNO) for polygon in four_nearest_polygons_gno]
+        ## Figure out which polygon contains the point
+        #Xy_find = shapely.geometry.Point(x_find, y_find)
+        #Xy_find_GNO = shapely.ops.transform(gno_transform, Xy_find)
+        #polygon_contains_point = [polygon.contains(Xy_find_GNO) for polygon in four_nearest_polygons_gno]
 
-        #assert np.count_nonzero(polygon_contains_point) == 1
-        assert np.count_nonzero(polygon_contains_point) > 0
-        # The first will be selected, if more than one
-        polygon_with_point = np.argmax(polygon_contains_point)
+        ##assert np.count_nonzero(polygon_contains_point) == 1
+        ##assert np.count_nonzero(polygon_contains_point) > 0
+        #if np.count_nonzero(polygon_contains_point) == 0:
+        #    if allow_jitter:
+        #        idx[:,i_find] = 
+        #    raise ValueError(f'Point at {x_find:8.2f} E, {y_find:8.2f} N could not be matched')
+        ## The first will be selected, if more than one
+        #polygon_with_point = np.argmax(polygon_contains_point)
 
-        # Get original index
-        nf = four_nearest_indexes[0][polygon_with_point]
-        YDim= four_nearest_indexes[1][polygon_with_point]
-        XDim= four_nearest_indexes[2][polygon_with_point]
-
+        ## Get original index
+        #nf = four_nearest_indexes[0][polygon_with_point]
+        #YDim= four_nearest_indexes[1][polygon_with_point]
+        #XDim= four_nearest_indexes[2][polygon_with_point]
+        nf, YDim, XDim = find_index_single(y_find,x_find,x_centers_flat,y_centers_flat,
+                                           xy,cs_size,latlon_crs,jitter_size=jitter_size)
         idx[:,i_find] = [nf,YDim,XDim]
     return idx
