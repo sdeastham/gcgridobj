@@ -114,12 +114,15 @@ class GCGOAccessor:
             data = self._obj[var].mean(dim='time')
         else:
             data = self._obj[var].sel(time=t)
-        if z is None:
-            data_layer = data.mean(dim='lev')
-        elif z == 'sum':
-            data_layer = data.sum(dim='lev')
+        if 'lev' in data.dims:
+            if z is None:
+                data_layer = data.mean(dim='lev')
+            elif z == 'sum':
+                data_layer = data.sum(dim='lev')
+            else:
+                data_layer = data.sel(lev=z)
         else:
-            data_layer = data.sel(lev=z)
+            data_layer = data
         if ax is None:
             f, ax = plt.subplots(1,1,figsize=(8,5),subplot_kw={'projection': ccrs.PlateCarree()})
         im, cb = plottools.plot_layer(data_layer,hrz_grid=self._obj,ax=ax,**kwargs)
