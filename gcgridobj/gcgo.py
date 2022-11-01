@@ -110,6 +110,7 @@ class GCGOAccessor:
         self._vrt_grid = vg
     
     def plot_layer(self,var,t=None,z=None,ax=None,**kwargs):
+        # Slice/average the data by time and level as necessary
         if t is None:
             data = self._obj[var].mean(dim='time')
         else:
@@ -123,9 +124,11 @@ class GCGOAccessor:
                 data_layer = data.sel(lev=z)
         else:
             data_layer = data
+        # Generate axes if none are provided
         if ax is None:
             f, ax = plt.subplots(1,1,figsize=(8,5),subplot_kw={'projection': ccrs.PlateCarree()})
-        im, cb = plottools.plot_layer(data_layer,hrz_grid=self._obj,ax=ax,**kwargs)
+        # Evaluate the data now so that some assignments deep in pyplot can execute
+        im, cb = plottools.plot_layer(data_layer.values.copy(),hrz_grid=self._obj,ax=ax,**kwargs)
         return im, cb
     
     def update_ll(self,new_grid):
