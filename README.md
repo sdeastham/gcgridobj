@@ -123,3 +123,29 @@ ax_zonal.set_ylim(0,10) # In km
 # Set the color limits and color map again
 gcgridobj.plottools.set_clim(im_zonal,[0,100],cmap='viridis')
 ```
+
+### Using the gcgo accessor
+
+To make working with data a bit easier, gcgridobj now has the gcgo accessor. This allows you to work with an xarray dataset directly (including plotting) without needing to manually specify the horizontal grids. This can be used with both lat-lon and cubed-sphere grids. Below is an example, assuming that there is a standard GCHP output in the current directory.
+
+```
+import xarray as xr
+from gcgridobj import gcgo, gc_vertical
+# Open a GC-Classic or GCHP output file
+ds = xr.open_dataset('GEOSChem.DefaultCollection.20220401_0000z.nc4')
+
+# Important! Always set the vertical grid. This both encodes
+# vertical information and initializes some internal variables
+ds.gcgo.vrt_grid = gc_vertical.standard_grid('GEOS_72L')
+# Set whether the dataset is encoded such that layer 1 is at the
+# surface (positive = "up") or top of atmosphere (positive = "down")
+# Up is assumed if not specified, so only worry about this if using
+# emissions output
+ds.gcgo.positive = 'up'
+# Plot zonally. This will default to taking the average over the time
+# axis - you can also specify time using the argument t = [time value]
+ds.gcgo.plot_zonal('SpeciesConc_O3')
+# Plot a layer. This will default to taking the average over the time
+# axis. Z refers to the layer index, not the layer value.
+ds.gcgo.plot_layer('SpeciesConc_O3',z=1)
+```
