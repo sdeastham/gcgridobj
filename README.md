@@ -149,3 +149,4 @@ ds.gcgo.plot_zonal('SpeciesConc_O3')
 # axis. Z refers to the layer index, not the layer value.
 ds.gcgo.plot_layer('SpeciesConc_O3',z=1)
 ```
+![image](https://user-images.githubusercontent.com/6618732/199525898-2d606c7d-5d67-4622-b537-c4bf008a376e.png)
