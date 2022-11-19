@@ -21,6 +21,40 @@ def extract_grid(ds,src_var='Xdim'):
     n_cs = ds[src_var].shape[-1]
     return gen_grid(n_cs)
 
+def read_gridspec(gs_obj):
+    # Reads a gridspec object and returns an xarray dataset
+    n_cs = gs_obj._tiles[0].area.shape[0]
+    lon   = np.zeros((6,n_cs,n_cs))
+    lon_b = np.zeros((6,n_cs+1,n_cs+1))
+    lat   = np.zeros((6,n_cs,n_cs))
+    lat_b = np.zeros((6,n_cs+1,n_cs+1))
+    area  = np.zeros((6,n_cs,n_cs))
+    for i in range(6):
+        tile = gs_obj._tiles[i]
+        lon_b[i,...] = tile.supergrid_lons[::2,::2] # Identical to original definition
+        lat_b[i,...] = tile.supergrid_lats[::2,::2] # Identical to original definition
+        lon[i,...] = tile.supergrid_lons[1::2,1::2] # NOT identical to original definition
+        lat[i,...] = tile.supergrid_lats[1::2,1::2] # NOT identical to original definition
+        area[i,...] = tile.area[...]
+    ds = xr.Dataset(
+        data_vars=dict(
+            area=(['nf','Ydim','Xdim'],area),
+            lon=(['nf','Ydim','Xdim'],lon),
+            lat=(['nf','Ydim','Xdim'],lat),
+            lon_b=(['nf','Ydim_b','Xdim_b'],lon_b),
+            lat_b=(['nf','Ydim_b','Xdim_b'],lat_b),
+        ),
+        coords=dict(
+            nf=(['nf'],list(range(6))),
+            Ydim=(['Ydim'],list(range(n_cs))),
+            Xdim=(['Xdim'],list(range(n_cs))),
+            Ydim_b=(['Ydim_b'],list(range(n_cs+1))),
+            Xdim_b=(['Xdim_b'],list(range(n_cs+1))),
+        ),
+        attrs=dict(description=f'c{n_cs:d} grid data'),
+    )
+    return ds
+
 def face_area(lon_b, lat_b, r_sphere = 6.375e6):
     """Calculate area of cubed-sphere grid cells on one face
     Inputs must be in degrees. Edge arrays must be
