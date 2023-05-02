@@ -142,7 +142,7 @@ def latlon_est_mid(indata):
     #return (indata[1:] + indata[:-1]) / 2.0
 
 def make_llvec(lbnd,dl):
-    n_mid = np.int(np.round((lbnd[1]-lbnd[0])/dl))
+    n_mid = int(np.round((lbnd[1]-lbnd[0])/dl))
     ledge = np.linspace(start=lbnd[0],stop=lbnd[1],num=n_mid+1)
     lmid  = latlon_est_mid(ledge)
     return lmid,ledge
@@ -151,7 +151,7 @@ def gen_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_range=N
     # Define a simple rectilinear grid
     
     # Generate longitude edge vector
-    n_lon = np.int(np.round(360.0 / lon_stride))
+    n_lon = int(np.round(360.0 / lon_stride))
     if center_180:
         start_lon = (-180.0) - (lon_stride/2.0)
     else:
@@ -160,7 +160,7 @@ def gen_grid(lon_stride,lat_stride,half_polar=False,center_180=False,lon_range=N
     
     # Generate latitude edge vector
     # If half-polar, first and last cell are centered on the poles
-    n_lat = np.int(np.round(180.0/lat_stride))
+    n_lat = int(np.round(180.0/lat_stride))
     if half_polar:
         n_lat += 1
         lat_max = 90.0 + (lat_stride/2.0)
